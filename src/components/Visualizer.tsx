@@ -18,6 +18,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ signal, label, color = '#00d4ff
 
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
+        
+        // Reset width/height to avoid accumulation issues if needed, 
+        // though flex should handle the rect size.
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
         ctx.scale(dpr, dpr);
@@ -47,14 +50,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ signal, label, color = '#00d4ff
         ctx.beginPath();
 
         const centerY = height / 2;
-        
-        
         let maxAmp = 0;
         for(let i=0; i<signal.length; i++) maxAmp = Math.max(maxAmp, Math.abs(signal[i]));
         maxAmp = maxAmp || 1;
 
         for (let i = 0; i < width; i++) {
-            const signalIdx = Math.floor((i / width) * signal.length);
+            const signalIdx = Math.floor((i / width) * (signal.length - 1));
             const val = signal[signalIdx] / maxAmp;
             const x = i;
             const y = centerY - val * (height / 2.2);
@@ -67,10 +68,10 @@ const Visualizer: React.FC<VisualizerProps> = ({ signal, label, color = '#00d4ff
     }, [signal, color]);
 
     return (
-        <div className="canvas-container">
+        <>
             <div className="canvas-label">{label}</div>
-            <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
-        </div>
+            <canvas ref={canvasRef} />
+        </>
     );
 };
 
