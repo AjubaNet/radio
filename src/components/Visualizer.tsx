@@ -47,7 +47,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ signal, label, color = '#00d4ff
         ctx.beginPath();
 
         const centerY = height / 2;
-        const step = Math.max(1, Math.floor(signal.length / width));
+        
         
         let maxAmp = 0;
         for(let i=0; i<signal.length; i++) maxAmp = Math.max(maxAmp, Math.abs(signal[i]));

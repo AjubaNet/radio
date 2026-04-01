@@ -11,14 +11,12 @@ const App: React.FC = () => {
         msgFreq,
         modIndex,
         snr,
-        sampleRate,
         signals,
         metrics,
         setCarrierFreq,
         setMsgFreq,
         setModIndex,
         setSnr,
-        setSampleRate,
         handleModulationChange,
         playSignal
     } = useRadio();

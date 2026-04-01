@@ -3,12 +3,19 @@ import {
     SignalGenerator, 
     AnalogModulator, 
     DigitalModulator, 
-    PulseModulator, 
-    SpreadSpectrumModulator, 
     SignalAnalyzer,
     SimpleFFT
 } from '../dsp/core';
-import { CONFIG, MODULATION_DEFAULTS } from '../constants/modulation';
+import { MODULATION_DEFAULTS } from '../constants/modulation';
+
+interface RadioSignals {
+    carrier: any;
+    message: any;
+    modulated: any;
+    demodulated: any;
+    demodIdeal: any;
+    noise: any;
+}
 
 export const useRadio = () => {
     const [modulation, setModulation] = useState('am');
@@ -18,7 +25,7 @@ export const useRadio = () => {
     const [snr, setSnr] = useState(MODULATION_DEFAULTS.am.snrDb);
     const [sampleRate, setSampleRate] = useState(MODULATION_DEFAULTS.am.sampleRate * 1000);
     
-    const [signals, setSignals] = useState({
+    const [signals, setSignals] = useState<RadioSignals>({
         carrier: new Float32Array(0),
         message: new Float32Array(0),
         modulated: new Float32Array(0),
@@ -43,20 +50,17 @@ export const useRadio = () => {
         const sigGen = new SignalGenerator(sampleRate);
         const analogMod = new AnalogModulator(sampleRate);
         const digitalMod = new DigitalModulator(sampleRate);
-        const pulseMod = new PulseModulator(sampleRate);
-        const spreadMod = new SpreadSpectrumModulator(sampleRate);
         const analyzer = new SignalAnalyzer(sampleRate);
         const fft = new SimpleFFT(2048);
 
         const duration = 0.1; // 100ms
-        const carrier = sigGen.generateCarrier(carrierFreq, 1, duration);
-        let message = new Float32Array(0);
-        let modulated = new Float32Array(0);
-        let demodIdeal = new Float32Array(0);
+        const carrier: any = sigGen.generateCarrier(carrierFreq, 1, duration);
+        let message: any = new Float32Array(0);
+        let modulated: any = new Float32Array(0);
+        let demodIdeal: any = new Float32Array(0);
         let bitStream: Uint8Array | null = null;
 
         const isDigital = ['ask', 'fsk', 'psk', 'qam'].includes(modulation);
-        const isPulse = ['pam', 'pwm', 'ppm', 'pcm'].includes(modulation);
         const isSpread = ['dsss', 'fhss'].includes(modulation);
 
         if (isDigital || isSpread) {
@@ -100,19 +104,19 @@ export const useRadio = () => {
                 const recoveredQam = digitalMod.demodulate_16QAM(modulated, carrierFreq, 0.01);
                 demodIdeal = sigGen.generateMessage(msgFreq, 'sine', 1, duration, recoveredQam);
                 break;
-            // ... add others as needed
+            default:
+                modulated = carrier;
+                demodIdeal = message;
         }
 
-        const noise = sigGen.addNoise(modulated, snr);
-        let demodulated = new Float32Array(0);
+        const noise: any = sigGen.addNoise(modulated, snr);
+        let demodulated: any = new Float32Array(0);
 
-        // Simple noisy demodulation for demo
         switch (modulation) {
             case 'am': demodulated = analogMod.demodulate_AM_Envelope(noise, carrierFreq); break;
             case 'fm': demodulated = analogMod.demodulate_FM(noise, carrierFreq); break;
             case 'pm': demodulated = analogMod.demodulate_PM_Hilbert(noise, carrierFreq); break;
-            // Digital ones would need bit recovery then re-synthesis or just use waveform
-            default: demodulated = demodIdeal; // Placeholder
+            default: demodulated = demodIdeal;
         }
 
         setSignals({
@@ -124,7 +128,6 @@ export const useRadio = () => {
             noise
         });
 
-        // Calculate metrics
         const measuredSnr = analyzer.calculateSNR(modulated, noise);
         const peakPower = analyzer.calculatePeakPower(modulated);
         const spectrum = fft.forward(modulated);
@@ -135,8 +138,8 @@ export const useRadio = () => {
             ber: isDigital ? analyzer.calculateBER(bitStream!, digitalMod.demodulate_ASK(noise, 0.01)) : 0,
             bandwidth,
             peakPower,
-            efficiency: 1.0, // placeholder
-            evm: 0 // placeholder
+            efficiency: 1.0,
+            evm: 0
         });
 
     }, [modulation, carrierFreq, msgFreq, modIndex, snr, sampleRate]);
@@ -155,19 +158,18 @@ export const useRadio = () => {
         }
 
         const signal = signals[type];
-        if (!signal.length) return;
+        if (!signal || !signal.length) return;
 
         const buffer = audioCtxRef.current.createBuffer(1, signal.length, audioCtxRef.current.sampleRate);
         const data = buffer.getChannelData(0);
         
-        // Simple resampling/normalization for playback
-        const maxVal = Math.max(...Array.from(signal).map(Math.abs));
+        const maxVal = Math.max(...Array.from(signal).map((v: any) => Math.abs(v)));
         for (let i = 0; i < signal.length; i++) {
-            data[i] = maxVal > 0 ? signal[i] / maxVal : 0;
+            data[i] = maxVal > 0 ? (signal[i] / (maxVal * 1.1)) : 0;
         }
 
         if (sourceRef.current) {
-            sourceRef.current.stop();
+            try { sourceRef.current.stop(); } catch(e) {}
         }
 
         const source = audioCtxRef.current.createBufferSource();

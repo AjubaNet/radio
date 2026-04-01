@@ -129,7 +129,7 @@ export class SignalGenerator {
         return noisy;
     }
 
-    generatePNSequence(length: number, polynomial = 0x0B): Uint8Array {
+    generatePNSequence(length: number, _polynomial = 0x0B): Uint8Array {
         const sequence = new Uint8Array(length);
         let lfsr = 1;
         for (let i = 0; i < length; i++) {
@@ -445,7 +445,7 @@ export class PulseModulator {
         this.sampleRate = sampleRate;
     }
 
-    modulate_PAM(message: Float32Array, samplingFreq: number, pulseWidth: number): Float32Array {
+    modulate_PAM(message: Float32Array, _samplingFreq: number, pulseWidth: number): Float32Array {
         const samplesPerPulse = Math.floor(pulseWidth * this.sampleRate);
         const modulated = new Float32Array(message.length * samplesPerPulse);
         let outIdx = 0;
@@ -455,7 +455,7 @@ export class PulseModulator {
         return modulated;
     }
 
-    modulate_PWM(message: Float32Array, frequency: number, period: number): Float32Array {
+    modulate_PWM(message: Float32Array, _frequency: number, period: number): Float32Array {
         const samplesPerPeriod = Math.floor(this.sampleRate * period);
         const modulated = new Float32Array(message.length * samplesPerPeriod);
         let outIdx = 0;
@@ -467,7 +467,7 @@ export class PulseModulator {
         return modulated;
     }
 
-    modulate_PPM(message: Float32Array, frequency: number, period: number): Float32Array {
+    modulate_PPM(message: Float32Array, _frequency: number, period: number): Float32Array {
         const samplesPerPeriod = Math.floor(this.sampleRate * period);
         const modulated = new Float32Array(message.length * samplesPerPeriod);
         const pulseWidth = Math.floor(samplesPerPeriod * 0.1);
