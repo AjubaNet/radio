@@ -1,12 +1,17 @@
 import React, { useRef, useEffect } from 'react';
 
-interface VisualizerProps {
-    signal: Float32Array;
+interface SignalLayer {
+    data: Float32Array;
+    color: string;
     label: string;
-    color?: string;
 }
 
-const Visualizer: React.FC<VisualizerProps> = ({ signal, label, color = '#00d4ff' }) => {
+interface VisualizerProps {
+    layers: SignalLayer[];
+    title: string;
+}
+
+const Visualizer: React.FC<VisualizerProps> = ({ layers, title }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -19,8 +24,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ signal, label, color = '#00d4ff
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
         
-        // Reset width/height to avoid accumulation issues if needed, 
-        // though flex should handle the rect size.
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
         ctx.scale(dpr, dpr);
@@ -42,34 +45,53 @@ const Visualizer: React.FC<VisualizerProps> = ({ signal, label, color = '#00d4ff
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
         }
 
-        if (signal.length === 0) return;
-
-        // Plot
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-
         const centerY = height / 2;
-        let maxAmp = 0;
-        for(let i=0; i<signal.length; i++) maxAmp = Math.max(maxAmp, Math.abs(signal[i]));
-        maxAmp = maxAmp || 1;
 
-        for (let i = 0; i < width; i++) {
-            const signalIdx = Math.floor((i / width) * (signal.length - 1));
-            const val = signal[signalIdx] / maxAmp;
-            const x = i;
-            const y = centerY - val * (height / 2.2);
+        layers.forEach((layer) => {
+            const signal = layer.data;
+            if (signal.length === 0) return;
 
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+            ctx.strokeStyle = layer.color;
+            ctx.lineWidth = 1.5;
+            if (layer.label.includes('Ideal')) {
+                ctx.setLineDash([5, 5]);
+            } else {
+                ctx.setLineDash([]);
+            }
+            
+            ctx.beginPath();
 
-    }, [signal, color]);
+            let maxAmp = 0;
+            for(let i=0; i<signal.length; i++) maxAmp = Math.max(maxAmp, Math.abs(signal[i]));
+            maxAmp = maxAmp || 1;
+
+            for (let i = 0; i < width; i++) {
+                const signalIdx = Math.floor((i / width) * (signal.length - 1));
+                const val = signal[signalIdx] / maxAmp;
+                const x = i;
+                const y = centerY - val * (height / 2.2);
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        });
+
+        // Reset dash for next render
+        ctx.setLineDash([]);
+
+    }, [layers]);
 
     return (
         <>
-            <div className="canvas-label">{label}</div>
+            <div className="canvas-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>{title}</span>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '10px' }}>
+                    {layers.map(l => (
+                        <span key={l.label} style={{ color: l.color }}>■ {l.label}</span>
+                    ))}
+                </div>
+            </div>
             <canvas ref={canvasRef} />
         </>
     );

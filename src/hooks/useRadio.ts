@@ -1,29 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-    SignalGenerator, 
-    AnalogModulator, 
-    DigitalModulator, 
-    SignalAnalyzer,
-    SimpleFFT
-} from '../dsp/core';
-import { MODULATION_DEFAULTS } from '../constants/modulation';
-
-interface RadioSignals {
-    carrier: any;
-    message: any;
-    modulated: any;
-    demodulated: any;
-    demodIdeal: any;
-    noise: any;
-}
+import type { ModulationType, RadioSignals, RadioMetrics } from '../types/radio';
+import { RadioEngine, SignalGenerator } from '../dsp/core';
+import { MODULATION_DEFAULTS } from '../constants/modulationData';
 
 export const useRadio = () => {
-    const [modulation, setModulation] = useState('am');
-    const [carrierFreq, setCarrierFreq] = useState(MODULATION_DEFAULTS.am.carrierFreq);
-    const [msgFreq, setMsgFreq] = useState(MODULATION_DEFAULTS.am.msgFreq);
-    const [modIndex, setModIndex] = useState(MODULATION_DEFAULTS.am.modIndex);
-    const [snr, setSnr] = useState(MODULATION_DEFAULTS.am.snrDb);
-    const [sampleRate, setSampleRate] = useState(MODULATION_DEFAULTS.am.sampleRate * 1000);
+    const [modulation, setModulation] = useState<ModulationType>('am');
+    const [carrierFreq, setCarrierFreq] = useState(1000);
+    const [msgFreq, setMsgFreq] = useState(100);
+    const [modIndex, setModIndex] = useState(0.5);
+    const [snr, setSnr] = useState(30);
+    const [sampleRate, setSampleRate] = useState(44100);
     
     const [signals, setSignals] = useState<RadioSignals>({
         carrier: new Float32Array(0),
@@ -34,12 +20,13 @@ export const useRadio = () => {
         noise: new Float32Array(0)
     });
 
-    const [metrics, setMetrics] = useState({
+    const [metrics, setMetrics] = useState<RadioMetrics>({
         snr: 0,
-        ber: 0,
-        bandwidth: 0,
+        setSnr: 30,
         peakPower: 0,
-        efficiency: 0,
+        bandwidth: 0,
+        ber: 0,
+        spectralEfficiency: 0,
         evm: 0
     });
 
@@ -48,99 +35,27 @@ export const useRadio = () => {
 
     const generateSignals = useCallback(() => {
         const sigGen = new SignalGenerator(sampleRate);
-        const analogMod = new AnalogModulator(sampleRate);
-        const digitalMod = new DigitalModulator(sampleRate);
-        const analyzer = new SignalAnalyzer(sampleRate);
-        const fft = new SimpleFFT(2048);
+        const engine = new RadioEngine(sampleRate);
+        
+        const duration = 0.1;
+        const carrier = sigGen.generateCarrier(carrierFreq, 1, duration);
+        const message = sigGen.generateMessage(msgFreq, 'sine', 0.5, duration);
+        
+        const modulated = engine.modulate(modulation, carrier, message, modIndex, carrierFreq);
+        const noise = sigGen.addNoise(modulated, snr);
+        
+        const demodIdeal = engine.demodulate(modulation, modulated, carrierFreq);
+        const demodulated = engine.demodulate(modulation, noise, carrierFreq);
 
-        const duration = 0.1; // 100ms
-        const carrier: any = sigGen.generateCarrier(carrierFreq, 1, duration);
-        let message: any = new Float32Array(0);
-        let modulated: any = new Float32Array(0);
-        let demodIdeal: any = new Float32Array(0);
-        let bitStream: Uint8Array | null = null;
-
-        const isDigital = ['ask', 'fsk', 'psk', 'qam'].includes(modulation);
-        const isSpread = ['dsss', 'fhss'].includes(modulation);
-
-        if (isDigital || isSpread) {
-            bitStream = new Uint8Array(16);
-            for (let i = 0; i < 16; i++) bitStream[i] = Math.random() > 0.5 ? 1 : 0;
-            message = sigGen.generateMessage(msgFreq, 'sine', 1, duration, bitStream);
-        } else {
-            message = sigGen.generateMessage(msgFreq, 'sine', 1, duration);
-        }
-
-        switch (modulation) {
-            case 'am':
-                modulated = analogMod.modulate_AM(carrier, message, modIndex);
-                demodIdeal = analogMod.demodulate_AM_Envelope(modulated, carrierFreq);
-                break;
-            case 'fm':
-                modulated = analogMod.modulate_FM(carrierFreq, message, msgFreq * modIndex, duration);
-                demodIdeal = analogMod.demodulate_FM(modulated, carrierFreq);
-                break;
-            case 'pm':
-                modulated = analogMod.modulate_PM(carrier, message, modIndex, carrierFreq);
-                demodIdeal = analogMod.demodulate_PM_Hilbert(modulated, carrierFreq);
-                break;
-            case 'ask':
-                modulated = digitalMod.modulate_ASK(carrierFreq, bitStream!, 0.01);
-                const recoveredAsk = digitalMod.demodulate_ASK(modulated, 0.01);
-                demodIdeal = sigGen.generateMessage(msgFreq, 'sine', 1, duration, recoveredAsk);
-                break;
-            case 'fsk':
-                modulated = digitalMod.modulate_FSK(carrierFreq + 200, carrierFreq - 200, bitStream!, 0.01);
-                const recoveredFsk = digitalMod.demodulate_FSK(modulated, carrierFreq + 200, carrierFreq - 200, 0.01);
-                demodIdeal = sigGen.generateMessage(msgFreq, 'sine', 1, duration, recoveredFsk);
-                break;
-            case 'psk':
-                modulated = digitalMod.modulate_BPSK(carrierFreq, bitStream!, 0.01);
-                const recoveredPsk = digitalMod.demodulate_PSK(modulated, carrierFreq, 0.01);
-                demodIdeal = sigGen.generateMessage(msgFreq, 'sine', 1, duration, recoveredPsk);
-                break;
-            case 'qam':
-                modulated = digitalMod.modulate_16QAM(carrierFreq, bitStream!, 0.01);
-                const recoveredQam = digitalMod.demodulate_16QAM(modulated, carrierFreq, 0.01);
-                demodIdeal = sigGen.generateMessage(msgFreq, 'sine', 1, duration, recoveredQam);
-                break;
-            default:
-                modulated = carrier;
-                demodIdeal = message;
-        }
-
-        const noise: any = sigGen.addNoise(modulated, snr);
-        let demodulated: any = new Float32Array(0);
-
-        switch (modulation) {
-            case 'am': demodulated = analogMod.demodulate_AM_Envelope(noise, carrierFreq); break;
-            case 'fm': demodulated = analogMod.demodulate_FM(noise, carrierFreq); break;
-            case 'pm': demodulated = analogMod.demodulate_PM_Hilbert(noise, carrierFreq); break;
-            default: demodulated = demodIdeal;
-        }
-
-        setSignals({
-            carrier,
-            message,
-            modulated,
-            demodulated,
-            demodIdeal,
-            noise
-        });
-
-        const measuredSnr = analyzer.calculateSNR(modulated, noise);
-        const peakPower = analyzer.calculatePeakPower(modulated);
-        const spectrum = fft.forward(modulated);
-        const bandwidth = analyzer.calculateBandwidth(spectrum, sampleRate);
-
-        setMetrics({
-            snr: measuredSnr,
-            ber: isDigital ? analyzer.calculateBER(bitStream!, digitalMod.demodulate_ASK(noise, 0.01)) : 0,
-            bandwidth,
-            peakPower,
-            efficiency: 1.0,
-            evm: 0
-        });
+        setSignals({ carrier, message, modulated, demodulated, demodIdeal, noise });
+        
+        setMetrics(prev => ({
+            ...prev,
+            snr: snr,
+            setSnr: snr,
+            peakPower: 0,
+            bandwidth: modulation === 'am' ? msgFreq * 2 : msgFreq * (1 + modIndex) * 2
+        }));
 
     }, [modulation, carrierFreq, msgFreq, modIndex, snr, sampleRate]);
 
@@ -148,30 +63,23 @@ export const useRadio = () => {
         generateSignals();
     }, [generateSignals]);
 
-    const playSignal = async (type: keyof typeof signals) => {
+    const playSignal = async (type: keyof RadioSignals) => {
         if (!audioCtxRef.current) {
             audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
-        
-        if (audioCtxRef.current.state === 'suspended') {
-            await audioCtxRef.current.resume();
-        }
+        if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume();
 
         const signal = signals[type];
-        if (!signal || !signal.length) return;
+        if (!signal.length) return;
 
         const buffer = audioCtxRef.current.createBuffer(1, signal.length, audioCtxRef.current.sampleRate);
         const data = buffer.getChannelData(0);
         
-        const maxVal = Math.max(...Array.from(signal).map((v: any) => Math.abs(v)));
-        for (let i = 0; i < signal.length; i++) {
-            data[i] = maxVal > 0 ? (signal[i] / (maxVal * 1.1)) : 0;
-        }
+        let max = 0;
+        for (let i = 0; i < signal.length; i++) max = Math.max(max, Math.abs(signal[i]));
+        for (let i = 0; i < signal.length; i++) data[i] = max > 0 ? signal[i] / (max * 1.1) : 0;
 
-        if (sourceRef.current) {
-            try { sourceRef.current.stop(); } catch(e) {}
-        }
-
+        if (sourceRef.current) try { sourceRef.current.stop(); } catch(e) {}
         const source = audioCtxRef.current.createBufferSource();
         source.buffer = buffer;
         source.connect(audioCtxRef.current.destination);
@@ -179,34 +87,22 @@ export const useRadio = () => {
         sourceRef.current = source;
     };
 
-    const handleModulationChange = (newMod: string) => {
+    const handleModulationChange = (newMod: ModulationType) => {
         setModulation(newMod);
-        const defaults = MODULATION_DEFAULTS[newMod as keyof typeof MODULATION_DEFAULTS];
-        if (defaults) {
-            setCarrierFreq(defaults.carrierFreq);
-            setMsgFreq(defaults.msgFreq);
-            setModIndex(defaults.modIndex);
-            setSnr(defaults.snrDb);
-            setSampleRate(defaults.sampleRate * 1000);
+        const d = MODULATION_DEFAULTS[newMod];
+        if (d) {
+            setCarrierFreq(d.carrierFreq);
+            setMsgFreq(d.msgFreq);
+            setModIndex(d.modIndex);
+            setSnr(d.snrDb);
+            setSampleRate(d.sampleRate * 1000);
         }
     };
 
     return {
-        modulation,
-        carrierFreq,
-        msgFreq,
-        modIndex,
-        snr,
-        sampleRate,
-        signals,
-        metrics,
-        setCarrierFreq,
-        setMsgFreq,
-        setModIndex,
-        setSnr,
-        setSampleRate,
-        handleModulationChange,
-        playSignal,
-        generateSignals
+        modulation, carrierFreq, msgFreq, modIndex, snr, sampleRate,
+        signals, metrics,
+        setCarrierFreq, setMsgFreq, setModIndex, setSnr,
+        handleModulationChange, playSignal
     };
 };
