@@ -3,13 +3,13 @@ import { useRadio } from './hooks/useRadio';
 import { AdvancedVisualizer } from './components/visualization/AdvancedVisualizer';
 import { ModulationGuide } from './components/educational/ModulationGuide';
 import type { ModulationType, ModulationCategory } from './types/radio';
-import { Radio, Settings2, Activity, Play, Download, Share2, Layers, BookOpen } from 'lucide-react';
+import { Radio, Settings2, Activity, Play, Download, Share2, Layers, BookOpen, Music } from 'lucide-react';
 
 const App: React.FC = () => {
     const {
         modulation, carrierFreq, msgFreq, modIndex, snr, signals, metrics,
         setCarrierFreq, setMsgFreq, setModIndex, setSnr,
-        handleModulationChange, playSignal
+        handleModulationChange, playSignal, playLongTrack
     } = useRadio();
 
     const [activeTab, setActiveTab] = useState<ModulationCategory>('analog');
@@ -41,7 +41,7 @@ const App: React.FC = () => {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
                     <div className="space-y-3">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-[#00d4ff]/60 flex items-center gap-2">
                             <Layers size={12} /> Category
@@ -148,6 +148,9 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <button onClick={() => playLongTrack()} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold hover:bg-amber-500 hover:text-[#1a1a2e] transition-all">
+                            <Music size={14} /> Play Demo Song
+                        </button>
                         <button onClick={() => playSignal('modulated')} className="flex items-center gap-2 px-4 py-2 bg-[#00d4ff]/10 border border-[#00d4ff]/30 rounded-lg text-[#00d4ff] text-xs font-bold hover:bg-[#00d4ff] hover:text-[#1a1a2e] transition-all">
                             <Play size={14} fill="currentColor" /> TX Signal
                         </button>
@@ -157,7 +160,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto">
+                <div className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto scrollbar-hide">
                     <div className="lg:col-span-2">
                         <AdvancedVisualizer 
                             title="Transmitted Modulated Waveform" 
@@ -187,7 +190,7 @@ const App: React.FC = () => {
                 <ModulationGuide type={modulation} />
                 <button 
                     onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="absolute -left-10 top-1/2 -translate-y-1/2 p-2 bg-[#1a1a2e] border border-[#00d4ff]/30 rounded-l-xl text-[#00d4ff]"
+                    className="absolute -left-10 top-1/2 -translate-y-1/2 p-2 bg-[#1a1a2e] border border-[#00d4ff]/30 rounded-l-xl text-[#00d4ff] z-10"
                 >
                     <BookOpen size={20} />
                 </button>
