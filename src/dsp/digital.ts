@@ -242,7 +242,9 @@ export function demodulateQAM(
 export function modulatePCM(n: number, sr: number, message: Float32Array): Float32Array {
     const out = new Float32Array(n);
     const bps = 4; // bits per sample
-    const spb = Math.floor(sr * 0.002); // 2ms per bit
+    // 0.5ms per bit → bitTotal=88 → word rate ≈ 501 Hz (5 words/cycle at 100Hz message).
+    // 2ms/bit (old) gave word rate 125 Hz — sub-Nyquist for 100Hz → missed square-wave half-cycles.
+    const spb = Math.floor(sr * 0.0005);
 
     // Normalize message to [-1, 1] so the full 4-bit quantizer range is utilized.
     // Without normalization (message amplitude 0.5), only 8 of 16 levels are used
@@ -267,13 +269,13 @@ export function modulatePCM(n: number, sr: number, message: Float32Array): Float
 
 /**
  * PCM decoder: integrate 4-bit words and reconstruct stepped sample values.
- * Output is NOT normalized by facade (same as original behavior).
+ * Facade DC removal + normalize handles amplitude alignment with message display.
  */
 export function demodulatePCM(signal: Float32Array, sr: number): Float32Array {
     const n = signal.length;
     const out = new Float32Array(n);
     const bps = 4;
-    const spb = Math.floor(sr * 0.002);
+    const spb = Math.floor(sr * 0.0005); // must match modulatePCM
     const bitTotal = spb * bps;
 
     for (let i = 0; i < n; i += bitTotal) {
