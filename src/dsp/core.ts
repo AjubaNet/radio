@@ -415,7 +415,7 @@ export class DigitalModulator {
         return modulated;
     }
 
-    demodulate_16QAM(signal: Float32Array, carrierFreq: number): Uint8Array {
+    demodulate_16QAM(signal: Float32Array, carrierFreq: number = 2000): Uint8Array {
         const bitsPerSymbol = 4;
         const symbolDurationSamples = Math.floor(this.sampleRate * CONFIG.bitDuration * bitsPerSymbol);
         const recoveredBits: number[] = [];
@@ -434,7 +434,7 @@ export class DigitalModulator {
             for (let j = start; j < end; j++) {
                 const phase = 2 * Math.PI * carrierFreq * j / this.sampleRate;
                 I += signal[j] * Math.cos(phase);
-                Q += signal[j] * -Math.sin(phase);
+                Q += signal[j] * (-Math.sin(phase));
             }
             const norm = end - start || 1;
             I = (2 * I) / norm;
