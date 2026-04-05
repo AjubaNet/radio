@@ -92,8 +92,10 @@ export class RadioEngine {
         }
 
         // Post-processing: DC removal + normalize to [-1, 1]
-        // Skip for QAM (has its own multi-level scaling) and PCM (quantized levels)
-        if (type !== 'qam' && type !== 'pcm') {
+        // DC removal + normalize to [-1, 1].
+        // Skip only QAM (its own multi-level waveform reconstruction handles scaling).
+        // PCM is now included so the decoded staircase is normalized consistently.
+        if (type !== 'qam') {
             let mean = 0;
             for (let i = 0; i < n; i++) mean += raw[i];
             mean /= n;

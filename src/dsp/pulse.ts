@@ -2,7 +2,10 @@
  * Pulse modulation/demodulation: PAM, PWM, PPM
  */
 
-const PULSE_PERIOD_S = 0.005; // 5ms per pulse period
+// 2ms pulse period: gives 5 pulses per message cycle at 100Hz (sr=44100, n=4410).
+// 5ms was too close to Nyquist (2.005× for 100Hz) causing near-zero-crossing aliasing.
+const PULSE_PERIOD_S = 0.002;
+
 const PPM_PULSE_WIDTH = 5;    // samples per PPM pulse
 
 // --- PAM ---

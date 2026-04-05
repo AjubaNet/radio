@@ -243,8 +243,18 @@ export function modulatePCM(n: number, sr: number, message: Float32Array): Float
     const out = new Float32Array(n);
     const bps = 4; // bits per sample
     const spb = Math.floor(sr * 0.002); // 2ms per bit
+
+    // Normalize message to [-1, 1] so the full 4-bit quantizer range is utilized.
+    // Without normalization (message amplitude 0.5), only 8 of 16 levels are used
+    // causing severe quantization bias in the decoded output.
+    let maxMsg = 0;
+    for (let i = 0; i < message.length; i++) maxMsg = Math.max(maxMsg, Math.abs(message[i]));
+    const scale = maxMsg > 1e-10 ? 1 / maxMsg : 1;
+
     for (let i = 0; i < n; i += spb * bps) {
-        const val = Math.floor(((message[Math.min(n - 1, i)] + 1) / 2) * 15);
+        const msgNorm = message[Math.min(n - 1, i)] * scale; // normalized to [-1, 1]
+        // Use round (not floor) to minimize quantization bias
+        const val = Math.min(15, Math.max(0, Math.round((msgNorm + 1) / 2 * 15)));
         for (let b = 0; b < bps; b++) {
             const bit = (val >> (3 - b)) & 1;
             for (let s = 0; s < spb && (i + b * spb + s) < n; s++) {
