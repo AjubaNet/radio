@@ -82,16 +82,38 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
 
         let maxAbs = 0;
         for (let i = 0; i < data.length; i++) maxAbs = Math.max(maxAbs, Math.abs(data[i]));
-        const scale = maxAbs > 0 ? 1 / maxAbs : 1;
+        const scaleY = (maxAbs > 0 ? 1 / maxAbs : 1) * (H / 2.2);
+        const samplesPerPixel = visibleSamples / W;
 
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
+        let pathStarted = false;
+
         for (let i = 0; i < W; i++) {
-            const idx = startSample + Math.floor((i / W) * visibleSamples);
-            if (idx >= data.length) break;
-            const y = H / 2 - data[idx] * scale * (H / 2.2);
-            i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+            const sStart = startSample + Math.floor(i * samplesPerPixel);
+            const sEnd = startSample + Math.floor((i + 1) * samplesPerPixel);
+            if (sStart >= data.length) break;
+
+            if (sEnd <= sStart + 1 || samplesPerPixel < 1.5) {
+                const val = data[Math.min(sStart, data.length - 1)];
+                const y = H / 2 - val * scaleY;
+                if (!pathStarted) { ctx.moveTo(i, y); pathStarted = true; }
+                else ctx.lineTo(i, y);
+            } else {
+                let minV = Infinity, maxV = -Infinity;
+                const limit = Math.min(sEnd, data.length);
+                for (let j = sStart; j < limit; j++) {
+                    if (data[j] < minV) minV = data[j];
+                    if (data[j] > maxV) maxV = data[j];
+                }
+                const yHi = H / 2 - maxV * scaleY;
+                const yLo = H / 2 - minV * scaleY;
+                const yMid = (yHi + yLo) / 2;
+                if (!pathStarted) { ctx.moveTo(i, yMid); pathStarted = true; }
+                ctx.lineTo(i, yHi);
+                ctx.lineTo(i, yLo);
+            }
         }
         ctx.stroke();
     }, [data, color, zoom, offset]);

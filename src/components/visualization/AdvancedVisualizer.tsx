@@ -99,6 +99,18 @@ export const AdvancedVisualizer: React.FC<Props> = ({
 
         const centerY = height / 2;
 
+        // Compute global max amplitude across all layers to prevent clipping
+        // (e.g. AM modulated signal can reach ±1.5 with modIndex=0.5)
+        let globalMax = 1e-10;
+        for (const layer of layers) {
+            if (!layer.data || layer.data.length === 0) continue;
+            for (let j = 0; j < layer.data.length; j++) {
+                const a = Math.abs(layer.data[j]);
+                if (a > globalMax) globalMax = a;
+            }
+        }
+        const scaleY = (height / 2.4) / globalMax; // 20% headroom at top/bottom
+
         layers.forEach((layer) => {
             const signal = layer.data;
             if (!signal || signal.length === 0) return;
@@ -110,17 +122,36 @@ export const AdvancedVisualizer: React.FC<Props> = ({
             const visibleSamples = Math.floor(signal.length / zoom);
             const maxOffsetRange = signal.length - visibleSamples;
             const startSample = Math.floor(offset * maxOffsetRange);
+            const samplesPerPixel = visibleSamples / width;
+
+            let pathStarted = false;
 
             for (let i = 0; i < width; i++) {
-                const signalIdx = startSample + Math.floor((i / width) * visibleSamples);
-                if (signalIdx >= signal.length) break;
-                
-                const val = signal[signalIdx];
-                const x = i;
-                const y = centerY - val * (height / 2.2);
+                const sStart = startSample + Math.floor(i * samplesPerPixel);
+                const sEnd = startSample + Math.floor((i + 1) * samplesPerPixel);
+                if (sStart >= signal.length) break;
 
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+                if (sEnd <= sStart + 1 || samplesPerPixel < 1.5) {
+                    // One sample per pixel — regular line
+                    const val = signal[Math.min(sStart, signal.length - 1)];
+                    const y = centerY - val * scaleY;
+                    if (!pathStarted) { ctx.moveTo(i, y); pathStarted = true; }
+                    else ctx.lineTo(i, y);
+                } else {
+                    // Multiple samples per pixel — draw min/max envelope to avoid aliasing
+                    let minV = Infinity, maxV = -Infinity;
+                    const limit = Math.min(sEnd, signal.length);
+                    for (let j = sStart; j < limit; j++) {
+                        if (signal[j] < minV) minV = signal[j];
+                        if (signal[j] > maxV) maxV = signal[j];
+                    }
+                    const yHi = centerY - maxV * scaleY;
+                    const yLo = centerY - minV * scaleY;
+                    const yMid = (yHi + yLo) / 2;
+                    if (!pathStarted) { ctx.moveTo(i, yMid); pathStarted = true; }
+                    ctx.lineTo(i, yHi);
+                    ctx.lineTo(i, yLo);
+                }
             }
             ctx.stroke();
         });

@@ -101,9 +101,11 @@ export const useRadio = () => {
             // Always pass bitStream — generateMessage will create ±1 pulse train
             message = sigGen.generateMessage(msgFreq, 'digital', 0.5, 0.1, bitStream);
         } else if (isMelodyMsg) {
-            // Build melody as message signal
+            // Build melody as message signal using short per-note duration for clear visualization.
+            // playMelody() uses the full rhyme.duration for audio; here 0.05s/note keeps the
+            // message signal short (~0.7s for Twinkle) so waveform is visible at default zoom.
             const rhyme = NURSERY_RHYMES.twinkle;
-            const noteDuration = rhyme.duration / rhyme.frequencies.length;
+            const noteDuration = 0.05; // 50 ms per note → 44100*0.05=2205 samples/note
             let melody = new Float32Array(0);
             for (const freq of rhyme.frequencies) {
                 const note = sigGen.generateMessage(freq, 'sine', 0.5, noteDuration);
@@ -252,7 +254,7 @@ export const useRadio = () => {
             audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
         if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume();
-        const buffer = audioCtxRef.current.createBuffer(1, signal.length, audioCtxRef.current.sampleRate);
+        const buffer = audioCtxRef.current.createBuffer(1, signal.length, sampleRate);
         const data = buffer.getChannelData(0);
         let max = 0;
         for (let i = 0; i < signal.length; i++) max = Math.max(max, Math.abs(signal[i]));

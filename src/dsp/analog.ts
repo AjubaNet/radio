@@ -148,8 +148,9 @@ export function demodulatePM(signal: Float32Array, sr: number, carrierFreq: numb
     const I = boxFilter(rawI, halfWin);
     const Q = boxFilter(rawQ, halfWin);
 
-    // I = A/2·sin(β·m), Q = A/2·cos(β·m) → atan2(I, Q) = β·m(t)
+    // PM: s(t)=sin(ωc·t+β·m). After mix+LPF: I=(A/2)sin(β·m), Q=-(A/2)cos(β·m)
+    // atan2(I, -Q) = atan2(sin(β·m), cos(β·m)) = β·m(t)
     const out = new Float32Array(n);
-    for (let i = 0; i < n; i++) out[i] = Math.atan2(I[i], Q[i]);
+    for (let i = 0; i < n; i++) out[i] = Math.atan2(I[i], -Q[i]);
     return out;
 }
