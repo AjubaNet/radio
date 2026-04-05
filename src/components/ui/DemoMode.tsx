@@ -7,42 +7,48 @@ interface DemoStep {
     title: string;
     narration: string;
     viewMode: ViewMode;
+    /** Name of the Chain panel to visually spotlight (must match ChainView panel labels) */
+    panelHighlight?: string;
     audio?: 'carrier' | 'modulated' | 'demodulated';
-    highlight?: string;
+    tip?: string;
 }
 
 const DEMO_STEPS: DemoStep[] = [
     {
-        title: "Overview: What Is Radio Modulation?",
-        narration: "Radio modulation encodes information onto a carrier wave for wireless transmission. Every radio station, WiFi signal, and cell phone uses modulation. Without it, baseband signals (voice, data) couldn't travel through the air — they'd interfere with each other and fade quickly.",
+        title: "The Radio Signal Chain",
+        narration: "Every radio communication follows the same pipeline: a carrier wave is generated, your message is encoded onto it (modulation), the signal travels through a noisy channel, and is decoded at the destination (demodulation). This Chain view shows all five stages simultaneously. Watch how each panel relates to the next as you explore different modulation types.",
         viewMode: 'chain',
-        highlight: "Chain view shows the full pipeline: Carrier → Message → Modulated → Ideal Recovery → Noisy Recovery. Each step is a transformation."
+        tip: "Switch modulation types (AM → FM → PSK) and watch all five panels update simultaneously. The chain never lies."
     },
     {
-        title: "Step 1: The Carrier Wave",
-        narration: "The carrier is a pure high-frequency sine wave — the 'vehicle' for your data. It oscillates thousands of times per second, allowing it to propagate as a radio wave. A carrier by itself carries no information; it's a blank slate waiting for modulation to imprint a message on it.",
-        viewMode: 'time',
+        title: "Stage 1: The Carrier Wave",
+        narration: "The Carrier panel shows a pure, steady sine wave oscillating at the carrier frequency. This is the blank slate — it carries no information yet. In radio, carriers operate at MHz or GHz so they can propagate as electromagnetic waves. Our lab uses lower frequencies (hundreds of Hz) so the math is identical but the waveform is visible.",
+        viewMode: 'chain',
+        panelHighlight: 'Carrier',
         audio: 'carrier',
-        highlight: "In Time view, you're seeing the modulated waveform. Notice how the carrier shape changes depending on which modulation type is active."
+        tip: "Notice: no matter what Message signal or modulation you choose, the Carrier itself is always the same clean sine wave. Modulation changes the Modulated panel, not this one."
     },
     {
-        title: "Step 2: The Message Signal",
-        narration: "The message signal is the information to transmit — voice, music, or data bits. Here we use a sine wave as a simple example. The message frequency must be much lower than the carrier frequency, ensuring the sidebands don't overlap. Try changing the Message Type to see how different waveforms look when modulated.",
-        viewMode: 'spectrum',
-        highlight: "Spectrum view: the spike at message frequency shows the information signal. After modulation, this energy moves to sidebands around the carrier."
+        title: "Stage 2: The Message Signal",
+        narration: "The Message panel is your information — the data you want to transmit. For analog mods (AM/FM/PM) it's a continuous waveform. For digital mods it's a binary pulse train of ±1 values representing 0s and 1s. The message frequency must always be well below the carrier frequency; otherwise sidebands would overlap and the signal couldn't be recovered.",
+        viewMode: 'chain',
+        panelHighlight: 'Message',
+        tip: "Try changing the Message Type (Sine → Square → Sawtooth → Digital) in the sidebar and watch only this panel change, then see how those changes ripple through to the Modulated panel."
     },
     {
-        title: "Step 3: Modulation — Encoding the Message",
-        narration: "Modulation impresses the message onto the carrier by changing one of its properties. AM varies amplitude, FM varies frequency (more noise-resistant), PSK flips phase (efficient for digital). The modulated signal is what gets transmitted over the air — it contains the message hidden within the carrier.",
-        viewMode: 'spectrum',
-        highlight: "Sidebands around the carrier spike are the encoded message. Increase Modulation Index to see them spread wider, consuming more bandwidth."
+        title: "Stage 3: The Modulated Signal",
+        narration: "Modulation impresses the message onto the carrier. Look at the Modulated panel — in AM the outline (envelope) of the wave traces the message shape; in FM the wave squeezes and stretches as the frequency varies; in PSK the wave suddenly flips phase at each bit boundary. This is the signal actually transmitted over the air.",
+        viewMode: 'chain',
+        panelHighlight: 'Modulated',
+        tip: "Increase the Modulation Index slider and watch the Modulated panel change dramatically. In AM, deeper modulation = wider envelope swing. In FM, wider frequency deviation = denser wave oscillations."
     },
     {
-        title: "Step 4: Channel Noise & Recovery",
-        narration: "Real channels add noise. The Recovery Comparison panel (orange) shows demodulation through a noisy channel; Ideal Recovery (green) shows perfect conditions. The Correlation % is your fidelity meter — 100% means perfect recovery, <50% means the noise is overwhelming the signal. Drag the SNR slider down to watch recovery degrade in real time.",
-        viewMode: 'time',
+        title: "Stage 4: Recovery Through Noise",
+        narration: "The bottom two panels show what the receiver hears. Ideal Recovery (green) is demodulation with zero noise — the theoretical best case. Noisy Recovery (orange) passes through a channel with the SNR you set. Lower the SNR slider to watch the orange trace diverge from green. The Correlation % quantifies how close they are — real radio systems use error correction (FEC, LDPC, Turbo codes) to push this toward 100% even at very low SNR.",
+        viewMode: 'chain',
+        panelHighlight: 'Noisy Recovery',
         audio: 'demodulated',
-        highlight: "Compare orange (noisy) vs green (ideal) recovery. Lower SNR = more divergence. Try FM vs AM at the same low SNR — FM holds up much better!"
+        tip: "Compare AM vs FM at SNR = 10 dB. FM's Noisy Recovery stays closer to the Ideal Recovery — that's FM's noise immunity advantage in action."
     }
 ];
 
@@ -50,26 +56,29 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     onViewChange: (mode: ViewMode) => void;
+    onPanelHighlight?: (panel: string | null) => void;
     onPlayAudio?: (type: 'carrier' | 'modulated' | 'demodulated') => void;
 }
 
-export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPlayAudio }) => {
+export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPanelHighlight, onPlayAudio }) => {
     const [step, setStep] = useState(0);
     const [autoPlay, setAutoPlay] = useState(false);
-    const [secondsLeft, setSecondsLeft] = useState(8);
+    const [secondsLeft, setSecondsLeft] = useState(10);
 
     // Stable refs — avoids recreating applyStep/goToStep on every render
-    const onViewChangeRef = useRef(onViewChange);
-    const onPlayAudioRef  = useRef(onPlayAudio);
-    useEffect(() => { onViewChangeRef.current = onViewChange; });
-    useEffect(() => { onPlayAudioRef.current  = onPlayAudio; });
+    const onViewChangeRef    = useRef(onViewChange);
+    const onPanelHighlightRef = useRef(onPanelHighlight);
+    const onPlayAudioRef     = useRef(onPlayAudio);
+    useEffect(() => { onViewChangeRef.current    = onViewChange; });
+    useEffect(() => { onPanelHighlightRef.current = onPanelHighlight; });
+    useEffect(() => { onPlayAudioRef.current     = onPlayAudio; });
 
-    const AUTO_ADVANCE_SECS = 8;
+    const AUTO_ADVANCE_SECS = 10;
 
-    // applyStep has stable identity ([] deps) — uses refs for callbacks
     const applyStep = useCallback((s: number) => {
         const demo = DEMO_STEPS[s];
         onViewChangeRef.current(demo.viewMode);
+        onPanelHighlightRef.current?.(demo.panelHighlight ?? null);
         if (demo.audio) {
             setTimeout(() => onPlayAudioRef.current?.(demo.audio!), 400);
         }
@@ -82,17 +91,18 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
         applyStep(clamped);
     }, [applyStep]);
 
-    // Apply step 0 when panel opens; reset auto-play
     useEffect(() => {
         if (isOpen) {
             setStep(0);
             setAutoPlay(false);
             applyStep(0);
+        } else {
+            // Clear highlight when closed
+            onPanelHighlightRef.current?.(null);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
-    // Auto-advance countdown — stable because goToStep is stable
     useEffect(() => {
         if (!autoPlay || !isOpen) return;
         if (secondsLeft <= 0) {
@@ -115,22 +125,23 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
     return (
         <div className="fixed bottom-0 left-80 right-96 z-40 p-4">
             <div className="bg-[#1a1a2e]/95 border border-[#00d4ff]/30 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden">
-                {/* Progress bar */}
                 <div className="h-1 bg-white/10">
                     <div className="h-full bg-[#00d4ff] transition-all duration-500" style={{ width: `${progress}%` }} />
                 </div>
 
                 <div className="p-4">
-                    {/* Header */}
                     <div className="flex items-start justify-between gap-4 mb-3">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="text-[10px] font-mono text-[#00d4ff]/60 uppercase tracking-widest">
-                                    Step {step + 1} / {DEMO_STEPS.length}
+                                    Stage {step + 1} / {DEMO_STEPS.length} — Chain View
                                 </span>
                                 {autoPlay && (
-                                    <span className="text-[10px] text-amber-400 font-mono">
-                                        → next in {secondsLeft}s
+                                    <span className="text-[10px] text-amber-400 font-mono">→ next in {secondsLeft}s</span>
+                                )}
+                                {current.panelHighlight && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00d4ff]/20 text-[#00d4ff]">
+                                        ↑ {current.panelHighlight}
                                     </span>
                                 )}
                             </div>
@@ -143,18 +154,19 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
 
                     <p className="text-xs text-gray-300 leading-relaxed mb-3">{current.narration}</p>
 
-                    {current.highlight && (
+                    {current.tip && (
                         <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
-                            <p className="text-[11px] text-amber-300">👁 {current.highlight}</p>
+                            <p className="text-[11px] text-amber-300">💡 Try: {current.tip}</p>
                         </div>
                     )}
 
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex gap-1.5">
-                            {DEMO_STEPS.map((_, i) => (
+                            {DEMO_STEPS.map((s, i) => (
                                 <button
                                     key={i}
                                     onClick={() => goToStep(i)}
+                                    title={s.title}
                                     className={`w-2 h-2 rounded-full transition-all ${
                                         i === step ? 'bg-[#00d4ff] scale-125' : 'bg-white/20 hover:bg-white/40'
                                     }`}

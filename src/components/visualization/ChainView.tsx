@@ -4,6 +4,7 @@ import { ZoomIn, ZoomOut, RotateCcw, Link, Link2Off, Info } from 'lucide-react';
 
 interface Props {
     signals: RadioSignals;
+    highlightedPanel?: string | null;
     // Optional sync with Time view
     externalZoom?: number;
     externalOffset?: number;
@@ -143,7 +144,7 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
     );
 };
 
-export const ChainView: React.FC<Props> = ({ signals, externalZoom, externalOffset, onViewChange }) => {
+export const ChainView: React.FC<Props> = ({ signals, highlightedPanel, externalZoom, externalOffset, onViewChange }) => {
     const [internalZoom, setInternalZoom] = useState(1);
     const [internalOffset, setInternalOffset] = useState(0);
     const [syncPanels, setSyncPanels] = useState(true);
@@ -202,15 +203,28 @@ export const ChainView: React.FC<Props> = ({ signals, externalZoom, externalOffs
             {/* Panels */}
             <div className="flex-1 flex flex-col gap-2 p-3 overflow-y-auto">
                 {panels.map((p, i) => (
-                    <ChainPanel
+                    <div
                         key={i}
-                        data={p.data}
-                        label={p.label}
-                        color={p.color}
-                        zoom={zoom}
-                        offset={offset}
-                        onViewChange={syncPanels ? handleViewChange : undefined}
-                    />
+                        className={`relative transition-all duration-500 ${
+                            highlightedPanel === p.label
+                                ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-[#0a0a20] rounded-lg shadow-[0_0_18px_rgba(251,191,36,0.4)]'
+                                : ''
+                        }`}
+                    >
+                        {highlightedPanel === p.label && (
+                            <div className="absolute -top-4 left-2 z-10 text-[9px] font-bold text-amber-400 uppercase tracking-widest animate-pulse">
+                                ▼ Look here
+                            </div>
+                        )}
+                        <ChainPanel
+                            data={p.data}
+                            label={p.label}
+                            color={highlightedPanel === p.label ? '#fbbf24' : p.color}
+                            zoom={zoom}
+                            offset={offset}
+                            onViewChange={syncPanels ? handleViewChange : undefined}
+                        />
+                    </div>
                 ))}
                 {zoom > 1 && (
                     <input

@@ -19,7 +19,7 @@ const App: React.FC = () => {
         signals, metrics, constellation,
         deterministicBits, setDeterministicBits,
         setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType, setSampleRate, setBitRate,
-        handleModulationChange, playSignal, playLongTrack,
+        handleModulationChange, playSignal, playMelody,
         exportWAV, copyParams, exportPDF
     } = useRadio();
 
@@ -32,8 +32,11 @@ const App: React.FC = () => {
     const [berModalOpen, setBerModalOpen] = useState(false);
     const [helpModalOpen, setHelpModalOpen] = useState(false);
     const [demoOpen, setDemoOpen] = useState(false);
+    const [demoPanelHighlight, setDemoPanelHighlight] = useState<string | null>(null);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [copyToast, setCopyToast] = useState(false);
+    const [selectedMelody, setSelectedMelody] = useState<'twinkle'|'mary'|'baa'|null>(null);
+    const [showMelodyPanel, setShowMelodyPanel] = useState(false);
 
     const handleViewChange = (zoom: number, offset: number) => {
         setSharedZoom(zoom);
@@ -333,17 +336,74 @@ const App: React.FC = () => {
                         <button onClick={() => setHelpModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 rounded-lg text-indigo-400 text-xs font-bold hover:bg-indigo-500 hover:text-white transition-all">
                             <HelpCircle size={14} /> Help
                         </button>
-                        <button onClick={() => playLongTrack()} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold hover:bg-amber-500 hover:text-[#1a1a2e] transition-all">
-                            <Music size={14} /> Play Demo Song
+                        <button
+                            onClick={() => setShowMelodyPanel(v => !v)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all ${
+                                showMelodyPanel
+                                ? 'bg-amber-500/30 border-amber-500/60 text-amber-300'
+                                : 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-[#1a1a2e]'
+                            }`}
+                        >
+                            <Music size={14} /> Melody
                         </button>
-                        <button onClick={() => playSignal('modulated')} className="flex items-center gap-2 px-4 py-2 bg-[#00d4ff]/10 border border-[#00d4ff]/30 rounded-lg text-[#00d4ff] text-xs font-bold hover:bg-[#00d4ff] hover:text-[#1a1a2e] transition-all">
+                        <button onClick={() => selectedMelody ? playMelody(selectedMelody, 'modulated') : playSignal('modulated')} className="flex items-center gap-2 px-4 py-2 bg-[#00d4ff]/10 border border-[#00d4ff]/30 rounded-lg text-[#00d4ff] text-xs font-bold hover:bg-[#00d4ff] hover:text-[#1a1a2e] transition-all">
                             <Play size={14} fill="currentColor" /> TX Signal
                         </button>
-                        <button onClick={() => playSignal('demodulated')} className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-xs font-bold hover:bg-green-500 hover:text-[#1a1a2e] transition-all">
+                        <button onClick={() => selectedMelody ? playMelody(selectedMelody, 'demodulated') : playSignal('demodulated')} className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-xs font-bold hover:bg-green-500 hover:text-[#1a1a2e] transition-all">
                             <Activity size={14} /> RX Recovery
                         </button>
                     </div>
                 </div>
+
+                {/* Melody selector panel */}
+                {showMelodyPanel && (
+                    <div className="px-8 py-3 border-b border-amber-500/20 bg-amber-500/5 flex items-center gap-4">
+                        <span className="text-xs font-bold text-amber-400 uppercase tracking-wider whitespace-nowrap">🎵 Signal Source</span>
+                        <div className="flex items-center gap-2">
+                            {([
+                                { key: null,       label: 'Tone (continuous)' },
+                                { key: 'twinkle',  label: 'Twinkle, Twinkle' },
+                                { key: 'mary',     label: 'Mary Had a Little Lamb' },
+                                { key: 'baa',      label: 'Baa, Baa, Black Sheep' },
+                            ] as const).map(m => (
+                                <button
+                                    key={m.key ?? 'none'}
+                                    onClick={() => setSelectedMelody(m.key)}
+                                    className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                                        selectedMelody === m.key
+                                        ? 'bg-amber-500/30 border-amber-400 text-amber-200'
+                                        : 'bg-white/5 border-white/10 text-gray-400 hover:border-amber-500/40 hover:text-amber-300'
+                                    }`}
+                                >
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+                        {selectedMelody && (
+                            <div className="flex items-center gap-2 ml-2">
+                                <button
+                                    onClick={() => playMelody(selectedMelody, 'original')}
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/40 transition-all"
+                                >
+                                    <Play size={10} fill="currentColor" /> Original
+                                </button>
+                                <button
+                                    onClick={() => playMelody(selectedMelody, 'modulated')}
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold bg-[#00d4ff]/20 border border-[#00d4ff]/40 text-[#00d4ff] hover:bg-[#00d4ff]/40 transition-all"
+                                >
+                                    <Play size={10} fill="currentColor" /> TX (modulated)
+                                </button>
+                                <button
+                                    onClick={() => playMelody(selectedMelody, 'demodulated')}
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold bg-green-500/20 border border-green-500/40 text-green-300 hover:bg-green-500/40 transition-all"
+                                >
+                                    <Play size={10} fill="currentColor" /> RX (recovered)
+                                </button>
+                                <span className="text-[10px] text-gray-500">← Compare quality!</span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* View mode tabs */}
                 <div className="flex items-center gap-1 px-8 py-2 border-b border-[#00d4ff]/10 bg-[#1a1a2e]/10">
@@ -429,6 +489,9 @@ const App: React.FC = () => {
                                 sampleRate={sampleRate}
                                 carrierFreq={carrierFreq}
                                 msgFreq={msgFreq}
+                                modulation={modulation}
+                                modIndex={modIndex}
+                                bitRate={bitRate}
                                 title="Frequency Spectrum (FFT)"
                             />
                         </div>
@@ -438,6 +501,7 @@ const App: React.FC = () => {
                         <div className="h-full min-h-[500px]">
                             <ChainView
                                 signals={signals}
+                                highlightedPanel={demoPanelHighlight}
                                 externalZoom={syncView ? sharedZoom : undefined}
                                 externalOffset={syncView ? sharedOffset : undefined}
                                 onViewChange={syncView ? handleViewChange : undefined}
@@ -483,8 +547,9 @@ const App: React.FC = () => {
 
             <DemoMode
                 isOpen={demoOpen}
-                onClose={() => setDemoOpen(false)}
+                onClose={() => { setDemoOpen(false); setDemoPanelHighlight(null); }}
                 onViewChange={(mode) => setViewMode(mode)}
+                onPanelHighlight={(panel) => setDemoPanelHighlight(panel)}
                 onPlayAudio={(type) => playSignal(type)}
             />
         </div>

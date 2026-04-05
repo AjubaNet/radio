@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { ModulationType } from '../../types/radio';
 import { MODULATION_INFO } from '../../constants/modulationData';
-import { Info, CheckCircle2, AlertTriangle, Radio, BookOpen, Lightbulb, GraduationCap, ChevronDown } from 'lucide-react';
+import { Info, CheckCircle2, AlertTriangle, Radio, BookOpen, Lightbulb, GraduationCap, ChevronDown, Wifi } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getAudienceContent } from '../../constants/audienceContent';
 import type { AudienceLevel } from '../../constants/audienceContent';
@@ -20,6 +20,7 @@ export const ModulationGuide: React.FC<Props> = ({ type }) => {
     const info = MODULATION_INFO[type];
     const [audienceOpen, setAudienceOpen] = useState(false);
     const [audienceLevel, setAudienceLevel] = useState<AudienceLevel>('high');
+    const [realWorldOpen, setRealWorldOpen] = useState(false);
 
     return (
         <motion.div 
@@ -166,6 +167,36 @@ export const ModulationGuide: React.FC<Props> = ({ type }) => {
                         </div>
                     );
                 })()}
+            </section>
+            {/* Real-World Context */}
+            <section className="border border-purple-500/20 rounded-xl overflow-hidden">
+                <button
+                    onClick={() => setRealWorldOpen(o => !o)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-[#0a0a20] hover:bg-[#0a0a30] transition-colors"
+                >
+                    <span className="flex items-center gap-2 text-xs font-bold text-purple-400 uppercase tracking-wide">
+                        <Wifi size={14} /> Real-World Context
+                    </span>
+                    <ChevronDown
+                        size={14}
+                        className={`text-purple-400/60 transition-transform duration-200 ${realWorldOpen ? 'rotate-180' : ''}`}
+                    />
+                </button>
+
+                {realWorldOpen && (
+                    <div className="bg-[#0a0a20] p-4 space-y-3">
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                            Real radio systems add layers on top of modulation so the received signal is nearly perfect even in noisy channels. This lab shows modulation alone.
+                        </p>
+                        <ul className="space-y-2 text-xs text-gray-300">
+                            <li className="flex gap-2 leading-relaxed"><span className="text-yellow-400 shrink-0">▸</span><span><strong className="text-yellow-400">FEC (Forward Error Correction):</strong> adds redundant bits so errors can be fixed without retransmitting. Reed-Solomon (GPS/CDs), Turbo (3G), LDPC (Wi-Fi 6, 5G).</span></li>
+                            <li className="flex gap-2 leading-relaxed"><span className="text-blue-400 shrink-0">▸</span><span><strong className="text-blue-400">ARQ:</strong> receiver requests retransmission of corrupted frames. Used in Wi-Fi MAC, Bluetooth, TCP.</span></li>
+                            <li className="flex gap-2 leading-relaxed"><span className="text-green-400 shrink-0">▸</span><span><strong className="text-green-400">Interleaving:</strong> scrambles bit order before TX so burst errors hit spread-out bits — FEC can then fix each one.</span></li>
+                            <li className="flex gap-2 leading-relaxed"><span className="text-purple-400 shrink-0">▸</span><span><strong className="text-purple-400">OFDM:</strong> splits signal into thousands of narrow subcarriers (Wi-Fi, 4G LTE, 5G, DAB radio), each immune to multipath fading.</span></li>
+                            <li className="flex gap-2 leading-relaxed"><span className="text-orange-400 shrink-0">▸</span><span><strong className="text-orange-400">MIMO:</strong> multiple TX/RX antennas multiply capacity proportionally. Wi-Fi 6 uses 8×8 MIMO; 5G uses massive MIMO (64+ antennas).</span></li>
+                        </ul>
+                    </div>
+                )}
             </section>
         </motion.div>
     );

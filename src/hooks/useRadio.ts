@@ -202,10 +202,10 @@ export const useRadio = () => {
         generateSignals();
     }, [generateSignals]);
 
-    const playLongTrack = async () => {
+    const playMelody = async (rhymeKey: keyof typeof NURSERY_RHYMES, channel: 'original' | 'modulated' | 'demodulated') => {
         const sigGen = new SignalGenerator(sampleRate);
         const engine = new RadioEngine(sampleRate);
-        const rhyme = NURSERY_RHYMES.twinkle;
+        const rhyme = NURSERY_RHYMES[rhymeKey];
         const noteDuration = rhyme.duration / rhyme.frequencies.length;
         let fullMelody = new Float32Array(0);
         for (const freq of rhyme.frequencies) {
@@ -215,8 +215,16 @@ export const useRadio = () => {
             combined.set(note, fullMelody.length);
             fullMelody = combined;
         }
+        if (channel === 'original') {
+            await playSignalData(fullMelody);
+            return;
+        }
         const carrier = sigGen.generateCarrier(carrierFreq, 1, rhyme.duration);
         const modulated = engine.modulate(modulation, carrier, fullMelody, modIndex, carrierFreq, undefined, msgFreq);
+        if (channel === 'modulated') {
+            await playSignalData(modulated);
+            return;
+        }
         const noise = sigGen.addNoise(modulated, snr);
         const result = engine.demodulate(modulation, noise, carrierFreq);
         await playSignalData(result.waveform);
@@ -442,7 +450,7 @@ export const useRadio = () => {
         signals, metrics, constellation,
         deterministicBits, setDeterministicBits,
         setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType, setSampleRate, setBitRate,
-        handleModulationChange, playSignal, playLongTrack, generateSignals,
+        handleModulationChange, playSignal, playMelody, generateSignals,
         exportWAV, copyParams, exportPDF
     };
 };

@@ -257,6 +257,71 @@ export const UserGuide: React.FC<Props> = ({ isOpen, onClose }) => {
                         </ol>
                     </section>
 
+                    {/* Section 10: Why Real Radio Works Better */}
+                    <section className="bg-[#00d4ff]/5 border border-[#00d4ff]/20 rounded-xl p-4 space-y-3">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-[#00d4ff]">Why Real Radio Works Better Than This Lab</h3>
+                        <p className="text-xs text-gray-300 leading-relaxed">
+                            In this simulator, you'll notice demodulated signals often don't perfectly match the original — especially at low SNR. Real-world radio systems layer several techniques on top of modulation to achieve near-perfect recovery even in terrible channels:
+                        </p>
+
+                        <div className="space-y-2">
+                            <div className="bg-black/30 rounded-lg p-3 space-y-1">
+                                <p className="text-[11px] font-bold text-yellow-400">🔒 Forward Error Correction (FEC)</p>
+                                <p className="text-xs text-gray-300 leading-relaxed">Adds redundant bits before transmission so the receiver can detect and fix errors without retransmitting. Types: <span className="text-white">Hamming codes</span> (Wi-Fi legacy, simple single-bit correction), <span className="text-white">Reed-Solomon</span> (GPS, CDs, DVDs — corrects burst errors), <span className="text-white">Turbo Codes</span> (3G/CDMA — near Shannon limit), <span className="text-white">LDPC</span> (Wi-Fi 802.11n/ac/ax, 5G NR — very efficient).</p>
+                            </div>
+                            <div className="bg-black/30 rounded-lg p-3 space-y-1">
+                                <p className="text-[11px] font-bold text-blue-400">🔄 ARQ — Automatic Repeat reQuest</p>
+                                <p className="text-xs text-gray-300 leading-relaxed">If the receiver detects an uncorrectable error, it sends a NAK (negative acknowledgement) and the transmitter resends. Used in Wi-Fi MAC layer, Bluetooth, and TCP/IP. Stop-and-wait ARQ is simple; Go-Back-N and Selective Repeat are more efficient for high-latency links.</p>
+                            </div>
+                            <div className="bg-black/30 rounded-lg p-3 space-y-1">
+                                <p className="text-[11px] font-bold text-green-400">🔀 Interleaving</p>
+                                <p className="text-xs text-gray-300 leading-relaxed">Scrambles the bit order before transmission. A burst of noise (fading) hits consecutive bits — but after de-interleaving at the receiver, those damaged bits are spread far apart, making them individually correctable by the FEC code. Critical for mobile communications where signal fading creates burst errors.</p>
+                            </div>
+                            <div className="bg-black/30 rounded-lg p-3 space-y-1">
+                                <p className="text-[11px] font-bold text-purple-400">📡 Equalization & OFDM</p>
+                                <p className="text-xs text-gray-300 leading-relaxed">Multipath fading (reflections off buildings) causes frequency-selective distortion. Equalizers cancel this. OFDM (Orthogonal Frequency Division Multiplexing) — used in Wi-Fi, 4G LTE, 5G NR, and DAB radio — splits the signal into thousands of narrow subcarriers, each too narrow to experience frequency-selective fading. A guard interval (cyclic prefix) absorbs multipath echoes.</p>
+                            </div>
+                            <div className="bg-black/30 rounded-lg p-3 space-y-1">
+                                <p className="text-[11px] font-bold text-orange-400">📶 Diversity Techniques</p>
+                                <p className="text-xs text-gray-300 leading-relaxed">Multiple independent paths for the same signal: <span className="text-white">Spatial diversity (MIMO)</span> — multiple antennas at TX and RX, used in Wi-Fi and 5G; <span className="text-white">Frequency diversity</span> — FHSS hops so only some hops hit a fade; <span className="text-white">Time diversity</span> — ARQ retransmits when first attempt failed. MIMO can increase capacity proportional to min(Tx, Rx) antennas.</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-3 overflow-x-auto">
+                            <table className="w-full text-[10px] border-collapse">
+                                <thead>
+                                    <tr className="border-b border-white/10">
+                                        <th className="text-left py-1 px-2 text-[#00d4ff] font-bold">System</th>
+                                        <th className="text-left py-1 px-2 text-[#00d4ff] font-bold">Modulation</th>
+                                        <th className="text-left py-1 px-2 text-[#00d4ff] font-bold">Error Correction</th>
+                                        <th className="text-left py-1 px-2 text-[#00d4ff] font-bold">Channel Technique</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-gray-300">
+                                    {[
+                                        ['Wi-Fi (802.11ax)', 'OFDM + 1024-QAM', 'LDPC', 'MIMO, beamforming'],
+                                        ['Bluetooth 5', 'GFSK / FHSS', 'FEC + ARQ', '79-channel hopping'],
+                                        ['4G LTE', 'OFDM + 64-QAM', 'Turbo codes', 'MIMO, ICIC'],
+                                        ['5G NR', 'OFDM + 256-QAM', 'LDPC + Polar', 'Massive MIMO'],
+                                        ['GPS L1', 'DSSS / BPSK', 'Reed-Solomon + Viterbi', 'Spread spectrum'],
+                                        ['Digital Radio (DAB)', 'OFDM + QPSK', 'Convolutional + RS', 'OFDM guard interval'],
+                                        ['FM Radio', 'FM (analog)', '(None — analog)', 'Pre-emphasis filter'],
+                                    ].map(([sys, mod, ecc, ch]) => (
+                                        <tr key={sys} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                                            <td className="py-1.5 px-2 font-bold text-white">{sys}</td>
+                                            <td className="py-1.5 px-2 text-[#00d4ff]/80">{mod}</td>
+                                            <td className="py-1.5 px-2 text-green-400/80">{ecc}</td>
+                                            <td className="py-1.5 px-2 text-purple-300/80">{ch}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p className="text-[10px] text-gray-500 italic">
+                            This lab demonstrates modulation/demodulation in isolation. Real systems combine all of the above to achieve extremely low BER (10⁻⁶ to 10⁻¹²) in practice.
+                        </p>
+                    </section>
+
                 </div>
             </div>
         </div>
