@@ -56,7 +56,7 @@ export const useRadio = () => {
         }
 
         const carrier = sigGen.generateCarrier(carrierFreq, 1, duration);
-        const modulated = engine.modulate(modulation, carrier, message, modIndex, carrierFreq, bitStream);
+        const modulated = engine.modulate(modulation, carrier, message, modIndex, carrierFreq, bitStream, msgFreq);
         const noise = sigGen.addNoise(modulated, snr);
         
         const idealResult = engine.demodulate(modulation, modulated, carrierFreq);
@@ -103,7 +103,7 @@ export const useRadio = () => {
             fullMelody = combined;
         }
         const carrier = sigGen.generateCarrier(carrierFreq, 1, rhyme.duration);
-        const modulated = engine.modulate(modulation, carrier, fullMelody, modIndex, carrierFreq);
+        const modulated = engine.modulate(modulation, carrier, fullMelody, modIndex, carrierFreq, undefined, msgFreq);
         const noise = sigGen.addNoise(modulated, snr);
         const result = engine.demodulate(modulation, noise, carrierFreq);
         await playSignalData(result.waveform);
