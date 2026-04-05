@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ModulationType } from '../../types/radio';
 import { MODULATION_INFO } from '../../constants/modulationData';
-import { Info, CheckCircle2, AlertTriangle, Radio, BookOpen } from 'lucide-react';
+import { Info, CheckCircle2, AlertTriangle, Radio, BookOpen, Lightbulb } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface Props {
@@ -72,6 +72,22 @@ export const ModulationGuide: React.FC<Props> = ({ type }) => {
                 <h3 className="text-[10px] text-[#00d4ff]/60 uppercase mb-2">Mathematical Model</h3>
                 <div className="text-sm text-[#00d4ff] text-center py-2">{info.formula}</div>
             </section>
+
+            {info.tips && info.tips.length > 0 && (
+                <section className="space-y-2">
+                    <h3 className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase">
+                        <Lightbulb size={14} /> Parameter Guide &amp; Boundary Conditions
+                    </h3>
+                    <ul className="space-y-2">
+                        {info.tips.map((tip, i) => (
+                            <li key={i} className="flex gap-2 text-xs text-gray-300 leading-relaxed bg-amber-500/5 border border-amber-500/10 rounded-lg p-3">
+                                <span className="text-amber-400 mt-0.5 shrink-0">▸</span>
+                                <span>{tip}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
         </motion.div>
     );
 };

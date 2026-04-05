@@ -16,6 +16,8 @@ export interface ModulationInfo {
   bandwidth: string;
   efficiency: string;
   formula: string;
+  /** Parameter tips: boundary conditions and favorable combinations for this demo */
+  tips: string[];
 }
 
 export interface RadioMetrics {

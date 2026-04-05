@@ -18,10 +18,10 @@ export const MODULATION_DEFAULTS = {
     fsk:  { carrierFreq: 2000, msgFreq: 100,  modIndex: 1,   snrDb: 30, sampleRate: 44 },
     psk:  { carrierFreq: 2000, msgFreq: 100,  modIndex: 1,   snrDb: 30, sampleRate: 44 },
     qam:  { carrierFreq: 3000, msgFreq: 100,  modIndex: 2,   snrDb: 35, sampleRate: 44 },
-    pam:  { carrierFreq: 1000, msgFreq: 100,  modIndex: 1,   snrDb: 35, sampleRate: 44 },
+    pam:  { carrierFreq: 1000, msgFreq: 50,   modIndex: 1,   snrDb: 35, sampleRate: 44 },
     pwm:  { carrierFreq: 1000, msgFreq: 50,   modIndex: 1,   snrDb: 35, sampleRate: 44 },
     ppm:  { carrierFreq: 1000, msgFreq: 50,   modIndex: 1,   snrDb: 35, sampleRate: 44 },
-    pcm:  { carrierFreq: 1000, msgFreq: 100,  modIndex: 1,   snrDb: 40, sampleRate: 44 },
+    pcm:  { carrierFreq: 1000, msgFreq: 50,   modIndex: 1,   snrDb: 40, sampleRate: 44 },
     dsss: { carrierFreq: 2000, msgFreq: 100,  modIndex: 1,   snrDb: 5,  sampleRate: 44 },
     fhss: { carrierFreq: 2000, msgFreq: 100,  modIndex: 1,   snrDb: 10, sampleRate: 44 },
 };
