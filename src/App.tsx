@@ -82,7 +82,7 @@ const App: React.FC = () => {
         { id: 'eye', label: 'Eye', digitalOnly: true },
     ];
 
-    const samplesPerSymbol = Math.max(1, Math.floor(sampleRate / (msgFreq * 16)));
+    const samplesPerSymbol = Math.max(1, Math.floor(sampleRate / bitRate));
 
     return (
         <div className="flex h-screen bg-[#050510] text-gray-100 overflow-hidden font-sans">

@@ -31,17 +31,17 @@ export function modulateDSSS(n: number, omega: number, bitStream: Uint8Array): F
 
 /**
  * DSSS despreader: correlate each bit slot with pn[c]·sin(ωt) over all chips.
- * Outputs ±1 stepped waveform (16-bit frame assumed).
+ * numBits: actual bit count from the modulated stream (must match modulator).
+ * Outputs ±1 stepped waveform.
  */
-export function demodulateDSSS(signal: Float32Array, sr: number, carrierFreq: number): Float32Array {
+export function demodulateDSSS(signal: Float32Array, sr: number, carrierFreq: number, numBits = 16): Float32Array {
     const n = signal.length;
     const omega = 2 * Math.PI * carrierFreq / sr;
-    const DEFAULT_BITS = 16;
-    const spb = Math.floor(n / DEFAULT_BITS);
+    const spb = Math.floor(n / numBits);
     const spc = Math.floor(spb / PN_SEQUENCE.length);
     const out = new Float32Array(n);
 
-    for (let b = 0; b < DEFAULT_BITS; b++) {
+    for (let b = 0; b < numBits; b++) {
         let corr = 0;
         for (let c = 0; c < PN_SEQUENCE.length; c++) {
             for (let s = 0; s < spc; s++) {
@@ -81,16 +81,16 @@ export function modulateFHSS(n: number, sr: number, carrierFreq: number, bitStre
 
 /**
  * FHSS demodulator: correlate each slot with the known hop frequency reference.
- * Outputs ±1 stepped waveform (16-bit frame assumed).
+ * numBits: actual bit count from the modulated stream (must match modulator).
+ * Outputs ±1 stepped waveform.
  */
-export function demodulateFHSS(signal: Float32Array, sr: number, carrierFreq: number): Float32Array {
+export function demodulateFHSS(signal: Float32Array, sr: number, carrierFreq: number, numBits = 16): Float32Array {
     const n = signal.length;
     const freqs = hopFreqs(carrierFreq);
-    const DEFAULT_BITS = 16;
-    const spb = Math.floor(n / DEFAULT_BITS);
+    const spb = Math.floor(n / numBits);
     const out = new Float32Array(n);
 
-    for (let b = 0; b < DEFAULT_BITS; b++) {
+    for (let b = 0; b < numBits; b++) {
         const w = 2 * Math.PI * freqs[b % freqs.length] / sr;
         const start = b * spb;
         const end = Math.min(n, start + spb);

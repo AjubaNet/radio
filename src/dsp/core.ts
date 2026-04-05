@@ -63,7 +63,8 @@ export class RadioEngine {
     demodulate(
         type: ModulationType,
         signal: Float32Array,
-        carrierFreq: number
+        carrierFreq: number,
+        numBits = 16
     ): { waveform: Float32Array; constellation?: { I: number; Q: number }[] } {
         const n = signal.length;
         let raw: Float32Array;
@@ -73,11 +74,11 @@ export class RadioEngine {
             case 'am':   raw = demodulateAM(signal, this.sampleRate, carrierFreq); break;
             case 'fm':   raw = demodulateFM(signal, this.sampleRate, carrierFreq); break;
             case 'pm':   raw = demodulatePM(signal, this.sampleRate, carrierFreq); break;
-            case 'ask':  raw = demodulateASK(signal, this.sampleRate, carrierFreq); break;
-            case 'fsk':  raw = demodulateFSK(signal, this.sampleRate, carrierFreq); break;
-            case 'psk':  raw = demodulatePSK(signal, this.sampleRate, carrierFreq); break;
+            case 'ask':  raw = demodulateASK(signal, this.sampleRate, carrierFreq, numBits); break;
+            case 'fsk':  raw = demodulateFSK(signal, this.sampleRate, carrierFreq, numBits); break;
+            case 'psk':  raw = demodulatePSK(signal, this.sampleRate, carrierFreq, numBits); break;
             case 'qam': {
-                const r = demodulateQAM(signal, this.sampleRate, carrierFreq);
+                const r = demodulateQAM(signal, this.sampleRate, carrierFreq, numBits);
                 raw = r.waveform;
                 constellation = r.constellation;
                 break;
@@ -86,8 +87,8 @@ export class RadioEngine {
             case 'pwm':  raw = demodulatePWM(signal, this.sampleRate); break;
             case 'ppm':  raw = demodulatePPM(signal, this.sampleRate); break;
             case 'pcm':  raw = demodulatePCM(signal, this.sampleRate); break;
-            case 'dsss': raw = demodulateDSSS(signal, this.sampleRate, carrierFreq); break;
-            case 'fhss': raw = demodulateFHSS(signal, this.sampleRate, carrierFreq); break;
+            case 'dsss': raw = demodulateDSSS(signal, this.sampleRate, carrierFreq, numBits); break;
+            case 'fhss': raw = demodulateFHSS(signal, this.sampleRate, carrierFreq, numBits); break;
             default:     raw = signal.slice(); break;
         }
 

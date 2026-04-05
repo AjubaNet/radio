@@ -104,9 +104,11 @@ export const useRadio = () => {
         const carrier = sigGen.generateCarrier(carrierFreq, 1, duration);
         const modulated = engine.modulate(modulation, carrier, message, modIndex, carrierFreq, bitStream, msgFreq);
         const noise = sigGen.addNoise(modulated, snr);
-        
-        const idealResult = engine.demodulate(modulation, modulated, carrierFreq);
-        const noisyResult = engine.demodulate(modulation, noise, carrierFreq);
+
+        // Pass actual numBits so demodulators use the correct symbol period
+        const demodBits = bitStream ? bitStream.length : 16;
+        const idealResult = engine.demodulate(modulation, modulated, carrierFreq, demodBits);
+        const noisyResult = engine.demodulate(modulation, noise, carrierFreq, demodBits);
 
         // BER
         const snrLinear = Math.pow(10, snr / 10);
