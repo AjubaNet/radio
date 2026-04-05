@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ModulationType, RadioSignals, RadioMetrics } from '../types/radio';
 import { RadioEngine, SignalGenerator } from '../dsp/core';
-import { MODULATION_DEFAULTS, NURSERY_RHYMES } from '../constants/modulationData';
+import { MODULATION_DEFAULTS, MODULATION_INFO, NURSERY_RHYMES } from '../constants/modulationData';
 import { SimpleFFT } from '../dsp/generators';
+import { jsPDF } from 'jspdf';
 
 function erfc(x: number): number {
   const t = 1 / (1 + 0.3275911 * x);
@@ -49,6 +50,7 @@ export const useRadio = () => {
     const [modIndex, setModIndex] = useState(0.5);
     const [snr, setSnr] = useState(30);
     const [sampleRate, setSampleRate] = useState(44100);
+    const [bitRate, setBitRate] = useState(1600);
     const [deterministicBits, setDeterministicBits] = useState(false);
     
     const [signals, setSignals] = useState<RadioSignals>({
@@ -88,7 +90,9 @@ export const useRadio = () => {
         let bitStream: Uint8Array | undefined;
 
         if (isDigital) {
-            const numBits = 16;
+            // numBits: use bitRate×duration, ensure multiple of 4 for QAM, minimum 4
+            const rawBits = Math.max(4, Math.round(bitRate * duration));
+            const numBits = modulation === 'qam' ? Math.max(4, Math.round(rawBits / 4) * 4) : rawBits;
             bitStream = new Uint8Array(numBits);
             const rng = deterministicBits ? mulberry32(42) : Math.random.bind(Math);
             for (let i = 0; i < numBits; i++) bitStream[i] = rng() > 0.5 ? 1 : 0;
@@ -190,7 +194,7 @@ export const useRadio = () => {
             correlation
         });
 
-    }, [modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate, deterministicBits]);
+    }, [modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate, deterministicBits, bitRate]);
 
     useEffect(() => {
         generateSignals();
@@ -289,16 +293,154 @@ export const useRadio = () => {
     };
 
     const copyParams = () => {
-        const params = JSON.stringify({ modulation, carrierFreq, msgFreq, modIndex, snrDb: snr, messageType }, null, 2);
+        const params = JSON.stringify({ modulation, carrierFreq, msgFreq, modIndex, snrDb: snr, messageType, bitRate, sampleRate }, null, 2);
         navigator.clipboard.writeText(params).catch(() => {});
     };
 
+    const exportPDF = () => {
+        const info = MODULATION_INFO[modulation];
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const W = doc.internal.pageSize.getWidth();
+        let y = 20;
+
+        const addText = (text: string, size: number, bold = false, color = [220, 220, 220] as [number,number,number]) => {
+            doc.setFontSize(size);
+            doc.setFont('helvetica', bold ? 'bold' : 'normal');
+            doc.setTextColor(...color);
+            const lines = doc.splitTextToSize(text, W - 40);
+            doc.text(lines, 20, y);
+            y += (lines.length * size * 0.4) + 4;
+            return y;
+        };
+
+        const checkPage = (needed = 20) => {
+            if (y + needed > 270) { doc.addPage(); y = 20; }
+        };
+
+        // Title
+        doc.setFillColor(10, 10, 40);
+        doc.rect(0, 0, W, 40, 'F');
+        doc.setFontSize(22); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 212, 255);
+        doc.text('RadioLab v2 — Lab Report', 20, 18);
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(150, 150, 180);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 28);
+        doc.text(`Modulation: ${info.name} (${info.abbreviation})`, 20, 34);
+        y = 50;
+
+        // Parameters table
+        addText('Signal Parameters', 13, true, [0, 212, 255]);
+        const params: [string, string][] = [
+            ['Modulation Type', `${info.name} (${info.abbreviation})`],
+            ['Carrier Frequency', `${carrierFreq} Hz`],
+            ['Message Frequency', `${msgFreq} Hz`],
+            ['Modulation Index', modIndex.toFixed(2)],
+            ['Channel SNR', `${snr} dB`],
+            ['Sample Rate', `${sampleRate.toLocaleString()} Hz`],
+            ['Bit Rate', `${bitRate} bps`],
+            ['Message Type', messageType],
+        ];
+        params.forEach(([k, v]) => {
+            checkPage(8);
+            doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(180, 180, 200);
+            doc.text(k + ':', 22, y);
+            doc.setFont('helvetica', 'normal'); doc.setTextColor(220, 220, 220);
+            doc.text(v, 80, y);
+            y += 6;
+        });
+
+        // Metrics
+        y += 4; checkPage(40);
+        addText('Measured Metrics', 13, true, [0, 212, 255]);
+        const mets: [string, string][] = [
+            ['Measured SNR', `${metrics.snr.toFixed(1)} dB`],
+            ['Occupied Bandwidth', `${(metrics.bandwidth / 1000).toFixed(2)} kHz`],
+            ['Peak Power', isFinite(metrics.peakPower) ? `${metrics.peakPower.toFixed(1)} dBm` : 'N/A'],
+            ['Spectral Efficiency', metrics.spectralEfficiency > 0 ? `${metrics.spectralEfficiency.toFixed(2)} bits/Hz` : 'N/A'],
+            ['BER (theoretical)', isFinite(metrics.ber) ? metrics.ber.toExponential(2) : 'N/A'],
+            ['EVM', modulation === 'qam' ? `${metrics.evm.toFixed(1)}%` : 'N/A'],
+            ['Recovery Correlation', `${(metrics.correlation * 100).toFixed(0)}%`],
+        ];
+        mets.forEach(([k, v]) => {
+            checkPage(8);
+            doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(180, 180, 200);
+            doc.text(k + ':', 22, y);
+            doc.setFont('helvetica', 'normal'); doc.setTextColor(220, 220, 220);
+            doc.text(v, 80, y);
+            y += 6;
+        });
+
+        // Description
+        y += 4; checkPage(30);
+        addText('Description', 13, true, [0, 212, 255]);
+        addText(info.description, 9, false);
+
+        // Formula
+        y += 2; checkPage(20);
+        addText('Mathematical Formula', 13, true, [0, 212, 255]);
+        doc.setFillColor(5, 5, 20);
+        doc.rect(18, y - 4, W - 36, 12, 'F');
+        doc.setFontSize(11); doc.setFont('courier', 'normal'); doc.setTextColor(0, 212, 255);
+        doc.text(info.formula, W / 2, y + 3, { align: 'center' });
+        y += 14;
+
+        // Advantages
+        checkPage(30);
+        addText('Advantages', 13, true, [80, 220, 140]);
+        info.advantages.forEach(a => {
+            checkPage(8);
+            doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(200, 220, 200);
+            doc.text(`• ${a}`, 24, y); y += 6;
+        });
+
+        // Disadvantages
+        y += 2; checkPage(30);
+        addText('Disadvantages', 13, true, [220, 100, 100]);
+        info.disadvantages.forEach(d => {
+            checkPage(8);
+            doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(220, 180, 180);
+            doc.text(`• ${d}`, 24, y); y += 6;
+        });
+
+        // Applications
+        y += 2; checkPage(30);
+        addText('Practical Applications', 13, true, [0, 212, 255]);
+        info.applications.forEach(a => {
+            checkPage(8);
+            doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(200, 200, 220);
+            doc.text(`• ${a}`, 24, y); y += 6;
+        });
+
+        // Tips
+        if (info.tips && info.tips.length > 0) {
+            y += 2; checkPage(30);
+            addText('Parameter Tips & Boundary Conditions', 13, true, [255, 180, 60]);
+            info.tips.forEach(tip => {
+                checkPage(12);
+                doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(220, 200, 160);
+                const lines = doc.splitTextToSize(`▸ ${tip}`, W - 48);
+                doc.text(lines, 24, y);
+                y += lines.length * 4.5 + 3;
+            });
+        }
+
+        // Footer on each page
+        const totalPages = doc.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+            doc.setPage(p);
+            doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 100);
+            doc.text(`RadioLab v2 Lab Report — ${info.name}`, 20, 290);
+            doc.text(`Page ${p} / ${totalPages}`, W - 30, 290);
+        }
+
+        doc.save(`radiolab_${modulation}_report.pdf`);
+    };
+
     return {
-        modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate,
+        modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate, bitRate,
         signals, metrics, constellation,
         deterministicBits, setDeterministicBits,
-        setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType,
+        setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType, setSampleRate, setBitRate,
         handleModulationChange, playSignal, playLongTrack, generateSignals,
-        exportWAV, copyParams
+        exportWAV, copyParams, exportPDF
     };
 };

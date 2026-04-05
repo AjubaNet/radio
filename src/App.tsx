@@ -7,18 +7,20 @@ import { EyeDiagram } from './components/visualization/EyeDiagram';
 import { WaterfallView } from './components/visualization/WaterfallView';
 import { ChainView } from './components/visualization/ChainView';
 import { BERCurveModal } from './components/ui/BERCurveModal';
+import { HelpModal } from './components/ui/HelpModal';
+import { DemoMode } from './components/ui/DemoMode';
 import { ModulationGuide } from './components/educational/ModulationGuide';
 import type { ModulationType, ModulationCategory } from './types/radio';
-import { Radio, Settings2, Activity, Play, Download, Share2, Layers, BookOpen, Music, Link, Link2Off, Waves, TrendingUp } from 'lucide-react';
+import { Radio, Settings2, Activity, Play, Download, Share2, Layers, BookOpen, Music, Link, Link2Off, Waves, TrendingUp, HelpCircle, Presentation } from 'lucide-react';
 
 const App: React.FC = () => {
     const {
-        modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate,
+        modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate, bitRate,
         signals, metrics, constellation,
         deterministicBits, setDeterministicBits,
-        setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType,
+        setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType, setSampleRate, setBitRate,
         handleModulationChange, playSignal, playLongTrack,
-        exportWAV, copyParams
+        exportWAV, copyParams, exportPDF
     } = useRadio();
 
     const [activeTab, setActiveTab] = useState<ModulationCategory>('analog');
@@ -28,6 +30,8 @@ const App: React.FC = () => {
     const [sharedOffset, setSharedOffset] = useState(0);
     const [viewMode, setViewMode] = useState<'time'|'spectrum'|'chain'|'waterfall'|'eye'>('time');
     const [berModalOpen, setBerModalOpen] = useState(false);
+    const [helpModalOpen, setHelpModalOpen] = useState(false);
+    const [demoOpen, setDemoOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [copyToast, setCopyToast] = useState(false);
 
@@ -206,6 +210,31 @@ const App: React.FC = () => {
                             </div>
                             <input type="range" min="-10" max="40" step="1" value={snr} onChange={(e) => setSnr(parseInt(e.target.value))} className="w-full accent-[#00d4ff] h-1 bg-white/10 rounded-full appearance-none cursor-pointer" />
                         </div>
+
+                        {isDigital && (
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-xs font-bold">
+                                    <span className="text-gray-400">Bit Rate</span>
+                                    <span className="text-[#00d4ff] font-mono">{bitRate} bps</span>
+                                </div>
+                                <input type="range" min="100" max="3200" step="100" value={bitRate} onChange={(e) => setBitRate(parseInt(e.target.value))} className="w-full accent-[#00d4ff] h-1 bg-white/10 rounded-full appearance-none cursor-pointer" />
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-xs font-bold">
+                                <span className="text-gray-400">Sample Rate</span>
+                                <span className="text-[#00d4ff] font-mono">{(sampleRate / 1000).toFixed(1)} kHz</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1">
+                                {[8000, 22050, 44100].map(sr => (
+                                    <button key={sr} onClick={() => setSampleRate(sr)}
+                                        className={`px-2 py-1 rounded text-[10px] font-bold border transition-all ${sampleRate === sr ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
+                                        {sr === 8000 ? '8k' : sr === 22050 ? '22k' : '44k'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -219,14 +248,14 @@ const App: React.FC = () => {
                         </button>
                         {showExportMenu && (
                             <div className="absolute bottom-full mb-2 left-0 bg-[#1a1a2e] border border-[#00d4ff]/30 rounded-xl overflow-hidden shadow-xl z-10 w-52">
-                                <button onClick={() => { exportWAV('demodulated'); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs text-gray-300 hover:bg-[#00d4ff]/10 hover:text-white transition-colors">
+                        <button onClick={() => { exportWAV('demodulated'); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs text-gray-300 hover:bg-[#00d4ff]/10 hover:text-white transition-colors">
                                     🎵 Export WAV (demodulated)
                                 </button>
                                 <button onClick={() => { exportWAV('message'); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs text-gray-300 hover:bg-[#00d4ff]/10 hover:text-white transition-colors border-t border-white/5">
                                     🎵 Export WAV (message)
                                 </button>
-                                <button disabled className="w-full text-left px-4 py-3 text-xs text-gray-500 border-t border-white/5 opacity-40 cursor-not-allowed">
-                                    🖼 Export PNG (soon)
+                                <button onClick={() => { exportPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs text-gray-300 hover:bg-purple-500/10 hover:text-white transition-colors border-t border-white/5">
+                                    📄 Export PDF Report
                                 </button>
                             </div>
                         )}
@@ -297,6 +326,12 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <button onClick={() => setBerModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-400 text-xs font-bold hover:bg-purple-500 hover:text-white transition-all">
                             <TrendingUp size={14} /> BER Curves
+                        </button>
+                        <button onClick={() => setDemoOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 border border-teal-500/30 rounded-lg text-teal-400 text-xs font-bold hover:bg-teal-500 hover:text-white transition-all">
+                            <Presentation size={14} /> Demo
+                        </button>
+                        <button onClick={() => setHelpModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 rounded-lg text-indigo-400 text-xs font-bold hover:bg-indigo-500 hover:text-white transition-all">
+                            <HelpCircle size={14} /> Help
                         </button>
                         <button onClick={() => playLongTrack()} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold hover:bg-amber-500 hover:text-[#1a1a2e] transition-all">
                             <Music size={14} /> Play Demo Song
@@ -431,6 +466,19 @@ const App: React.FC = () => {
                 onClose={() => setBerModalOpen(false)}
                 currentModulation={modulation}
                 currentSnr={snr}
+            />
+
+            <HelpModal
+                isOpen={helpModalOpen}
+                onClose={() => setHelpModalOpen(false)}
+                modulation={modulation}
+            />
+
+            <DemoMode
+                isOpen={demoOpen}
+                onClose={() => setDemoOpen(false)}
+                onViewChange={(mode) => setViewMode(mode)}
+                onPlayAudio={(type) => playSignal(type)}
             />
         </div>
     );
