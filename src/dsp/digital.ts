@@ -166,7 +166,13 @@ export function modulateQAM(n: number, omega: number, bitStream: Uint8Array): Fl
 /**
  * 16-QAM coherent demodulator.
  * Symbol period matches the modulator: spb = floor(n / numSymbols).
- * Outputs: stepped waveform (decoded I normalized to [-1,1]) + constellation points.
+ *
+ * Waveform output: decoded bits at the ORIGINAL BIT RATE (DEFAULT_BITS steps),
+ * so it aligns with the message waveform for visual comparison.
+ * Each QAM symbol decodes to 4 bits (2 from I-axis, 2 from Q-axis).
+ *
+ * Gray decoding: QAM_GRAY_MAP[alphabetIndex] gives the Gray code value;
+ * the original input bits are the MSB/LSB of that Gray code directly.
  */
 export function demodulateQAM(
     signal: Float32Array,
@@ -177,13 +183,25 @@ export function demodulateQAM(
     const omega = 2 * Math.PI * carrierFreq / sr;
     const DEFAULT_SYMBOLS = Math.floor(DEFAULT_BITS / 4); // 4 symbols for 16 bits
     const spb = Math.floor(n / DEFAULT_SYMBOLS);
+    const spb_bit = Math.floor(n / DEFAULT_BITS); // samples per bit (matches message)
     const out = new Float32Array(n);
     const constellation: { I: number; Q: number }[] = [];
-    const maxAlpha = QAM_ALPHABET[QAM_ALPHABET.length - 1]; // 3/sqrt(10)
+
+    /** Find nearest alphabet index for a given soft value. */
+    const nearestIdx = (val: number): number => {
+        let best = 0, minD = Infinity;
+        for (let k = 0; k < QAM_ALPHABET.length; k++) {
+            const d = Math.abs(val - QAM_ALPHABET[k]);
+            if (d < minD) { minD = d; best = k; }
+        }
+        return best;
+    };
 
     for (let sym = 0; sym < DEFAULT_SYMBOLS; sym++) {
         const start = sym * spb;
         const end = Math.min(n, start + spb);
+
+        // Coherent quadrature correlation
         let I = 0, Q = 0;
         for (let i = start; i < end; i++) {
             I += signal[i] * Math.cos(omega * i);
@@ -194,15 +212,26 @@ export function demodulateQAM(
         Q = (2 * Q) / cnt;
         constellation.push({ I, Q });
 
-        // Decode to nearest QAM I-axis level for waveform display
-        let bestI = QAM_ALPHABET[0];
-        let minDist = Math.abs(I - bestI);
-        for (const a of QAM_ALPHABET) {
-            const d = Math.abs(I - a);
-            if (d < minDist) { minDist = d; bestI = a; }
+        // Hard decision: find nearest constellation point on each axis
+        const bestI_idx = nearestIdx(I);
+        const bestQ_idx = nearestIdx(Q);
+
+        // Gray decode: QAM_GRAY_MAP[alphabetIdx] == original 2-bit input
+        // (the encoding stored bits directly as Gray code values)
+        const gI = QAM_GRAY_MAP[bestI_idx]; // bits b[0],b[1] encoded as gray value
+        const gQ = QAM_GRAY_MAP[bestQ_idx]; // bits b[2],b[3] encoded as gray value
+        const bits = [
+            (gI >> 1) & 1, gI & 1,   // decoded b[0], b[1]
+            (gQ >> 1) & 1, gQ & 1    // decoded b[2], b[3]
+        ];
+
+        // Output ±1 at original bit rate so waveform aligns with message display
+        for (let b = 0; b < 4; b++) {
+            const val = bits[b] ? 1 : -1;
+            const bitStart = (sym * 4 + b) * spb_bit;
+            const bitEnd = Math.min(n, bitStart + spb_bit);
+            for (let i = bitStart; i < bitEnd; i++) out[i] = val;
         }
-        const waveVal = maxAlpha > 0 ? bestI / maxAlpha : 0; // normalize to [-1, 1]
-        for (let i = start; i < end; i++) out[i] = waveVal;
     }
 
     return { waveform: out, constellation };
