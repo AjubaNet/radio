@@ -28,6 +28,7 @@ export interface RadioMetrics {
   ber: number;
   spectralEfficiency: number;
   evm: number;
+  correlation: number;
 }
 
 export interface RadioSignals {
@@ -37,6 +38,7 @@ export interface RadioSignals {
   demodulated: Float32Array;
   demodIdeal: Float32Array;
   noise: Float32Array;
+  spectrum: Float32Array;
 }
 
 export type ViewMode = 'time' | 'freq' | 'constellation' | 'eye' | 'waterfall' | 'chain' | 'compare';
