@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Info } from 'lucide-react';
 
 interface Props {
   spectrum: Float32Array;
@@ -10,6 +11,7 @@ interface Props {
 
 export const SpectrumVisualizer: React.FC<Props> = ({ spectrum, sampleRate, carrierFreq, msgFreq, title = 'Spectrum' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -107,9 +109,15 @@ export const SpectrumVisualizer: React.FC<Props> = ({ spectrum, sampleRate, carr
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden">
-      <div className="px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
+      <div className="flex items-center justify-between px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
         <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
+        <button onClick={() => setShowInfo(v => !v)} className={`p-1 rounded transition-colors ${showInfo ? 'bg-[#00d4ff]/30 text-white' : 'text-[#00d4ff]/50 hover:bg-[#00d4ff]/20'}`}><Info size={13} /></button>
       </div>
+      {showInfo && (
+        <div className="px-4 py-3 bg-indigo-950/60 border-b border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
+          <strong>Frequency Spectrum (FFT):</strong> Shows signal energy vs. frequency. The tall spike at the carrier frequency ({carrierFreq} Hz) is the carrier itself. The sidebands flanking it carry your message information. Wider sidebands = more bandwidth used. Increasing modulation index spreads sidebands further. The dashed lines mark key frequencies. Carson&apos;s Rule (BW ≈ 2(Δf + fm)) defines the occupied bandwidth for FM.
+        </div>
+      )}
       <div className="relative flex-1">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       </div>

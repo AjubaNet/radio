@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Info } from 'lucide-react';
 
 interface VisualizerLayer {
     data: Float32Array;
@@ -10,19 +10,21 @@ interface VisualizerLayer {
 interface Props {
     layers: VisualizerLayer[];
     title: string;
+    infoText?: string;
     externalZoom?: number;
     externalOffset?: number;
     onViewChange?: (zoom: number, offset: number) => void;
 }
 
 export const AdvancedVisualizer: React.FC<Props> = ({ 
-    layers, title, externalZoom, externalOffset, onViewChange 
+    layers, title, infoText, externalZoom, externalOffset, onViewChange 
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [internalZoom, setInternalZoom] = useState(1);
     const [internalOffset, setInternalOffset] = useState(0);
     const [isDragging, setIsPlaying] = useState(false);
     const [lastX, setLastX] = useState(0);
+    const [showInfo, setShowInfo] = useState(false);
 
     const zoom = externalZoom !== undefined ? externalZoom : internalZoom;
     const offset = externalOffset !== undefined ? externalOffset : internalOffset;
@@ -133,11 +135,25 @@ export const AdvancedVisualizer: React.FC<Props> = ({
                     <span className="text-[10px] text-gray-500 font-mono">Zoom: {zoom.toFixed(1)}x</span>
                 </div>
                 <div className="flex items-center gap-2 text-[#00d4ff]">
+                    {infoText && (
+                        <button
+                            onClick={() => setShowInfo(v => !v)}
+                            className={`p-1 rounded transition-colors ${showInfo ? 'bg-[#00d4ff]/30 text-white' : 'hover:bg-[#00d4ff]/20'}`}
+                            title="What does this graph show?"
+                        >
+                            <Info size={13} />
+                        </button>
+                    )}
                     <button onClick={() => updateView(zoom * 1.5, offset)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><ZoomIn size={14} /></button>
                     <button onClick={() => updateView(zoom / 1.5, offset)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><ZoomOut size={14} /></button>
                     <button onClick={() => updateView(1, 0)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><RotateCcw size={14} /></button>
                 </div>
             </div>
+            {showInfo && infoText && (
+                <div className="px-4 py-3 bg-indigo-950/60 border-b border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
+                    {infoText}
+                </div>
+            )}
             <div 
                 className="relative flex-1 min-h-[200px] cursor-grab active:cursor-grabbing select-none"
                 onWheel={handleWheel}

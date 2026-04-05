@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import type { ModulationType } from '../../types/radio';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, X, Play, Pause } from 'lucide-react';
 
 type ViewMode = 'time' | 'spectrum' | 'chain' | 'waterfall' | 'eye';
@@ -8,7 +7,6 @@ interface DemoStep {
     title: string;
     narration: string;
     viewMode: ViewMode;
-    mod?: ModulationType;
     audio?: 'carrier' | 'modulated' | 'demodulated';
     highlight?: string;
 }
@@ -16,35 +14,35 @@ interface DemoStep {
 const DEMO_STEPS: DemoStep[] = [
     {
         title: "Overview: What Is Radio Modulation?",
-        narration: "Radio modulation is the process of encoding information onto a carrier wave for transmission. The carrier wave is a high-frequency sine wave that can travel long distances through the air or cables. Without modulation, we couldn't transmit audio, video, or data wirelessly. Every radio station, WiFi signal, and cell phone uses some form of modulation.",
+        narration: "Radio modulation encodes information onto a carrier wave for wireless transmission. Every radio station, WiFi signal, and cell phone uses modulation. Without it, baseband signals (voice, data) couldn't travel through the air — they'd interfere with each other and fade quickly.",
         viewMode: 'chain',
-        highlight: "Look at the Chain view — you'll see the signal pipeline from left to right: Carrier → Message → Modulated → Ideal Recovery → Noisy Recovery."
+        highlight: "Chain view shows the full pipeline: Carrier → Message → Modulated → Ideal Recovery → Noisy Recovery. Each step is a transformation."
     },
     {
         title: "Step 1: The Carrier Wave",
-        narration: "The carrier wave is a pure, high-frequency sine wave. It's the 'vehicle' that will carry our information. By itself, a carrier wave carries no information — it just oscillates at a fixed frequency. We'll encode our message by changing one of its properties: amplitude, frequency, or phase.",
+        narration: "The carrier is a pure high-frequency sine wave — the 'vehicle' for your data. It oscillates thousands of times per second, allowing it to propagate as a radio wave. A carrier by itself carries no information; it's a blank slate waiting for modulation to imprint a message on it.",
         viewMode: 'time',
         audio: 'carrier',
-        highlight: "In Time view, look at the 'Transmitted Modulated Waveform' — this is what the carrier looks like after modulation."
+        highlight: "In Time view, you're seeing the modulated waveform. Notice how the carrier shape changes depending on which modulation type is active."
     },
     {
         title: "Step 2: The Message Signal",
-        narration: "The message signal is the information we want to transmit. It could be audio (voice or music), data bits, or any analog signal. Here we're using a sine wave as our message, but try switching to Square, Sawtooth, or Digital message types to see how they affect the modulated output.",
+        narration: "The message signal is the information to transmit — voice, music, or data bits. Here we use a sine wave as a simple example. The message frequency must be much lower than the carrier frequency, ensuring the sidebands don't overlap. Try changing the Message Type to see how different waveforms look when modulated.",
         viewMode: 'spectrum',
-        highlight: "In Spectrum view, notice the spike at the message frequency. After modulation, this spike moves to appear as sidebands around the carrier frequency."
+        highlight: "Spectrum view: the spike at message frequency shows the information signal. After modulation, this energy moves to sidebands around the carrier."
     },
     {
         title: "Step 3: Modulation — Encoding the Message",
-        narration: "Modulation combines the carrier with the message. Depending on the technique: AM changes the carrier's amplitude, FM changes its frequency, PSK flips its phase. The modulated signal contains all the original message information, but now it rides on the carrier at the transmission frequency.",
+        narration: "Modulation impresses the message onto the carrier by changing one of its properties. AM varies amplitude, FM varies frequency (more noise-resistant), PSK flips phase (efficient for digital). The modulated signal is what gets transmitted over the air — it contains the message hidden within the carrier.",
         viewMode: 'spectrum',
-        highlight: "In Spectrum view, you can see sidebands appearing around the carrier frequency — those are the encoded message components!"
+        highlight: "Sidebands around the carrier spike are the encoded message. Increase Modulation Index to see them spread wider, consuming more bandwidth."
     },
     {
         title: "Step 4: Channel Noise & Recovery",
-        narration: "In the real world, signals pass through noisy channels. The orange 'Recovery Comparison' shows demodulation with noise, while the green 'Ideal Recovery' shows perfect channel conditions. The Correlation % tells you how faithfully the message was recovered. Higher SNR = better recovery. Try dragging the SNR slider down to see the signal degrade!",
+        narration: "Real channels add noise. The Recovery Comparison panel (orange) shows demodulation through a noisy channel; Ideal Recovery (green) shows perfect conditions. The Correlation % is your fidelity meter — 100% means perfect recovery, <50% means the noise is overwhelming the signal. Drag the SNR slider down to watch recovery degrade in real time.",
         viewMode: 'time',
         audio: 'demodulated',
-        highlight: "Compare the orange (noisy) and green (ideal) recovery signals. The Correlation % in the corner shows recovery quality."
+        highlight: "Compare orange (noisy) vs green (ideal) recovery. Lower SNR = more divergence. Try FM vs AM at the same low SNR — FM holds up much better!"
     }
 ];
 
@@ -60,16 +58,23 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
     const [autoPlay, setAutoPlay] = useState(false);
     const [secondsLeft, setSecondsLeft] = useState(8);
 
+    // Stable refs — avoids recreating applyStep/goToStep on every render
+    const onViewChangeRef = useRef(onViewChange);
+    const onPlayAudioRef  = useRef(onPlayAudio);
+    useEffect(() => { onViewChangeRef.current = onViewChange; });
+    useEffect(() => { onPlayAudioRef.current  = onPlayAudio; });
+
     const AUTO_ADVANCE_SECS = 8;
 
+    // applyStep has stable identity ([] deps) — uses refs for callbacks
     const applyStep = useCallback((s: number) => {
         const demo = DEMO_STEPS[s];
-        onViewChange(demo.viewMode);
-        if (demo.audio && onPlayAudio) {
-            setTimeout(() => onPlayAudio(demo.audio!), 300);
+        onViewChangeRef.current(demo.viewMode);
+        if (demo.audio) {
+            setTimeout(() => onPlayAudioRef.current?.(demo.audio!), 400);
         }
         setSecondsLeft(AUTO_ADVANCE_SECS);
-    }, [onViewChange, onPlayAudio]);
+    }, []);
 
     const goToStep = useCallback((s: number) => {
         const clamped = Math.max(0, Math.min(DEMO_STEPS.length - 1, s));
@@ -77,7 +82,17 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
         applyStep(clamped);
     }, [applyStep]);
 
-    // Auto-advance timer
+    // Apply step 0 when panel opens; reset auto-play
+    useEffect(() => {
+        if (isOpen) {
+            setStep(0);
+            setAutoPlay(false);
+            applyStep(0);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
+
+    // Auto-advance countdown — stable because goToStep is stable
     useEffect(() => {
         if (!autoPlay || !isOpen) return;
         if (secondsLeft <= 0) {
@@ -92,18 +107,10 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
         return () => clearTimeout(timer);
     }, [autoPlay, secondsLeft, step, isOpen, goToStep]);
 
-    // Apply step on open
-    useEffect(() => {
-        if (isOpen) {
-            setStep(0);
-            applyStep(0);
-        }
-    }, [isOpen, applyStep]);
-
     if (!isOpen) return null;
 
     const current = DEMO_STEPS[step];
-    const progress = ((step) / (DEMO_STEPS.length - 1)) * 100;
+    const progress = (step / (DEMO_STEPS.length - 1)) * 100;
 
     return (
         <div className="fixed bottom-0 left-80 right-96 z-40 p-4">
@@ -114,7 +121,7 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
                 </div>
 
                 <div className="p-4">
-                    {/* Header row */}
+                    {/* Header */}
                     <div className="flex items-start justify-between gap-4 mb-3">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -123,7 +130,7 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
                                 </span>
                                 {autoPlay && (
                                     <span className="text-[10px] text-amber-400 font-mono">
-                                        Auto-advancing in {secondsLeft}s
+                                        → next in {secondsLeft}s
                                     </span>
                                 )}
                             </div>
@@ -134,17 +141,14 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
                         </button>
                     </div>
 
-                    {/* Narration */}
                     <p className="text-xs text-gray-300 leading-relaxed mb-3">{current.narration}</p>
 
-                    {/* Highlight tip */}
                     {current.highlight && (
                         <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
                             <p className="text-[11px] text-amber-300">👁 {current.highlight}</p>
                         </div>
                     )}
 
-                    {/* Step dots + navigation */}
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex gap-1.5">
                             {DEMO_STEPS.map((_, i) => (
@@ -191,3 +195,4 @@ export const DemoMode: React.FC<Props> = ({ isOpen, onClose, onViewChange, onPla
         </div>
     );
 };
+

@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Info } from 'lucide-react';
 
 interface Props {
   signal: Float32Array;
@@ -8,6 +9,7 @@ interface Props {
 
 export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 'Eye Diagram' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -72,9 +74,15 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden">
-      <div className="px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
+      <div className="flex items-center justify-between px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
         <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
+        <button onClick={() => setShowInfo(v => !v)} className={`p-1 rounded transition-colors ${showInfo ? 'bg-[#00d4ff]/30 text-white' : 'text-[#00d4ff]/50 hover:bg-[#00d4ff]/20'}`}><Info size={13} /></button>
       </div>
+      {showInfo && (
+        <div className="px-4 py-3 bg-indigo-950/60 border-b border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
+          <strong>Eye Diagram:</strong> All symbol periods overlaid on top of each other. A wide-open &ldquo;eye&rdquo; in the center means each symbol is clearly distinguishable — the receiver can decode reliably. As noise increases (lower SNR), the traces spread and the eye begins to close. When the eye nearly closes, errors become frequent. The horizontal threshold line shows the decision boundary for bit detection.
+        </div>
+      )}
       <div className="relative flex-1">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       </div>

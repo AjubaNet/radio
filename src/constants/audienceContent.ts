@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
-import type { ModulationType } from '../../types/radio';
-import { MODULATION_INFO } from '../../constants/modulationData';
-import { X, GraduationCap, BookOpen, FlaskConical } from 'lucide-react';
+import type { ModulationType } from '../types/radio';
+import { MODULATION_INFO } from './modulationData';
 
-type AudienceLevel = 'school' | 'high' | 'college';
+export type AudienceLevel = 'school' | 'high' | 'college';
 
-interface AudienceContent {
+export interface AudienceContent {
     overview: string;
     howItWorks: string;
     analogy: string;
     keyPoints: string[];
 }
 
-function getAudienceContent(type: ModulationType, level: AudienceLevel): AudienceContent {
+export function getAudienceContent(type: ModulationType, level: AudienceLevel): AudienceContent {
     const info = MODULATION_INFO[type];
 
     const school: Record<ModulationType, AudienceContent> = {
@@ -97,101 +95,3 @@ function getAudienceContent(type: ModulationType, level: AudienceLevel): Audienc
     if (level === 'high') return high[type];
     return college[type];
 }
-
-interface Props {
-    isOpen: boolean;
-    onClose: () => void;
-    modulation: ModulationType;
-}
-
-export const HelpModal: React.FC<Props> = ({ isOpen, onClose, modulation }) => {
-    const [level, setLevel] = useState<AudienceLevel>('high');
-
-    if (!isOpen) return null;
-
-    const content = getAudienceContent(modulation, level);
-    const info = MODULATION_INFO[modulation];
-
-    const levels: { id: AudienceLevel; label: string; icon: React.ReactNode; desc: string }[] = [
-        { id: 'school', label: 'Middle School', icon: <BookOpen size={14} />, desc: 'Simple analogies' },
-        { id: 'high', label: 'High School', icon: <GraduationCap size={14} />, desc: 'Technical concepts' },
-        { id: 'college', label: 'College', icon: <FlaskConical size={14} />, desc: 'Math & theory' },
-    ];
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
-            <div
-                className="relative w-full max-w-2xl max-h-[85vh] bg-[#1a1a2e] border border-[#00d4ff]/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#00d4ff]/20 bg-[#00d4ff]/5">
-                    <div>
-                        <h2 className="text-lg font-bold text-white">{info.name} — How It Works</h2>
-                        <p className="text-xs text-[#00d4ff]/60 mt-0.5">Select your level for a tailored explanation</p>
-                    </div>
-                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-                        <X size={18} />
-                    </button>
-                </div>
-
-                {/* Audience selector */}
-                <div className="flex gap-2 px-6 pt-4 pb-2">
-                    {levels.map(l => (
-                        <button
-                            key={l.id}
-                            onClick={() => setLevel(l.id)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                level === l.id
-                                ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white'
-                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                            }`}
-                        >
-                            {l.icon} {l.label}
-                            <span className={`text-[9px] font-normal hidden sm:inline ${level === l.id ? 'text-[#00d4ff]/70' : 'text-gray-600'}`}>
-                                — {l.desc}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                    <section className="space-y-2">
-                        <h3 className="text-xs font-bold uppercase text-[#00d4ff] tracking-wider">Overview</h3>
-                        <p className="text-sm text-gray-300 leading-relaxed">{content.overview}</p>
-                    </section>
-
-                    <section className="space-y-2">
-                        <h3 className="text-xs font-bold uppercase text-[#00d4ff] tracking-wider">How It Works</h3>
-                        <p className="text-sm text-gray-300 leading-relaxed">{content.howItWorks}</p>
-                    </section>
-
-                    {content.analogy && (
-                        <section className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
-                            <h3 className="text-xs font-bold uppercase text-amber-400 tracking-wider mb-2">💡 Analogy</h3>
-                            <p className="text-sm text-gray-300 leading-relaxed">{content.analogy}</p>
-                        </section>
-                    )}
-
-                    <section className="space-y-2">
-                        <h3 className="text-xs font-bold uppercase text-[#00d4ff] tracking-wider">Key Points</h3>
-                        <ul className="space-y-2">
-                            {content.keyPoints.map((pt, i) => (
-                                <li key={i} className="flex gap-2 text-sm text-gray-300 leading-relaxed">
-                                    <span className="text-[#00d4ff] shrink-0 mt-0.5">▸</span>
-                                    <span className={level === 'college' ? 'font-mono text-xs' : ''}>{pt}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-
-                    <section className="bg-black/40 rounded-xl p-4 border border-[#00d4ff]/20">
-                        <h3 className="text-[10px] text-[#00d4ff]/60 uppercase mb-2 font-bold tracking-wider">Formula</h3>
-                        <div className="text-sm text-[#00d4ff] font-mono text-center">{info.formula}</div>
-                    </section>
-                </div>
-            </div>
-        </div>
-    );
-};

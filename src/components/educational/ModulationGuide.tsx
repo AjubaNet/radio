@@ -1,15 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { ModulationType } from '../../types/radio';
 import { MODULATION_INFO } from '../../constants/modulationData';
-import { Info, CheckCircle2, AlertTriangle, Radio, BookOpen, Lightbulb } from 'lucide-react';
+import { Info, CheckCircle2, AlertTriangle, Radio, BookOpen, Lightbulb, GraduationCap, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getAudienceContent } from '../../constants/audienceContent';
+import type { AudienceLevel } from '../../constants/audienceContent';
 
 interface Props {
     type: ModulationType;
 }
 
+const AUDIENCE_TABS: { id: AudienceLevel; label: string; emoji: string }[] = [
+    { id: 'school', label: 'Middle School', emoji: '🏫' },
+    { id: 'high',   label: 'High School',   emoji: '📚' },
+    { id: 'college', label: 'College',      emoji: '🎓' },
+];
+
 export const ModulationGuide: React.FC<Props> = ({ type }) => {
     const info = MODULATION_INFO[type];
+    const [audienceOpen, setAudienceOpen] = useState(false);
+    const [audienceLevel, setAudienceLevel] = useState<AudienceLevel>('high');
 
     return (
         <motion.div 
@@ -88,6 +98,75 @@ export const ModulationGuide: React.FC<Props> = ({ type }) => {
                     </ul>
                 </section>
             )}
+
+            {/* Simplified Explanation */}
+            <section className="border border-[#00d4ff]/20 rounded-xl overflow-hidden">
+                <button
+                    onClick={() => setAudienceOpen(o => !o)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-[#0a0a20] hover:bg-[#0a0a30] transition-colors"
+                >
+                    <span className="flex items-center gap-2 text-xs font-bold text-[#00d4ff] uppercase tracking-wide">
+                        <GraduationCap size={14} /> Simplified Explanation
+                    </span>
+                    <ChevronDown
+                        size={14}
+                        className={`text-[#00d4ff]/60 transition-transform duration-200 ${audienceOpen ? 'rotate-180' : ''}`}
+                    />
+                </button>
+
+                {audienceOpen && (() => {
+                    const content = getAudienceContent(type, audienceLevel);
+                    return (
+                        <div className="bg-[#0a0a20]">
+                            {/* Tabs */}
+                            <div className="flex border-b border-[#00d4ff]/20">
+                                {AUDIENCE_TABS.map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setAudienceLevel(tab.id)}
+                                        className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                                            audienceLevel === tab.id
+                                                ? 'text-[#00d4ff] bg-[#00d4ff]/10 border-b-2 border-[#00d4ff]'
+                                                : 'text-gray-500 hover:text-gray-300'
+                                        }`}
+                                    >
+                                        {tab.emoji} {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-4 space-y-4">
+                                <p className="text-sm text-gray-300 leading-relaxed">{content.overview}</p>
+
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold uppercase text-[#00d4ff]/70 tracking-wide">How it works:</p>
+                                    <p className="text-xs text-gray-300 leading-relaxed">{content.howItWorks}</p>
+                                </div>
+
+                                {content.analogy && (
+                                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 space-y-1">
+                                        <p className="text-[10px] font-bold uppercase text-amber-400/80 tracking-wide">Analogy:</p>
+                                        <p className="text-xs text-gray-300 leading-relaxed">{content.analogy}</p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold uppercase text-[#00d4ff]/70 tracking-wide">Key points:</p>
+                                    <ul className="space-y-1">
+                                        {content.keyPoints.map((pt, i) => (
+                                            <li key={i} className="flex gap-2 text-xs text-gray-300 leading-relaxed">
+                                                <span className="text-[#00d4ff] shrink-0 mt-0.5">▸</span>
+                                                <span>{pt}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </section>
         </motion.div>
     );
 };

@@ -7,7 +7,7 @@ import { EyeDiagram } from './components/visualization/EyeDiagram';
 import { WaterfallView } from './components/visualization/WaterfallView';
 import { ChainView } from './components/visualization/ChainView';
 import { BERCurveModal } from './components/ui/BERCurveModal';
-import { HelpModal } from './components/ui/HelpModal';
+import { UserGuide } from './components/ui/UserGuide';
 import { DemoMode } from './components/ui/DemoMode';
 import { ModulationGuide } from './components/educational/ModulationGuide';
 import type { ModulationType, ModulationCategory } from './types/radio';
@@ -375,6 +375,7 @@ const App: React.FC = () => {
                             <div className={isDigital && constellation.length > 0 ? "lg:col-span-1 h-[300px]" : "lg:col-span-2 h-[300px]"}>
                                 <AdvancedVisualizer
                                     title="Transmitted Modulated Waveform"
+                                    infoText="The carrier wave has been modified (modulated) to carry your message. In AM, the amplitude envelope follows the message. In FM, the frequency visibly varies with the message. In digital mods, look for phase flips or amplitude changes at symbol boundaries. Compare this to the Message and Carrier panels in Chain view."
                                     layers={[{ data: signals.modulated, color: '#00d4ff', label: 'Modulated' }]}
                                     externalZoom={syncView ? sharedZoom : undefined}
                                     externalOffset={syncView ? sharedOffset : undefined}
@@ -391,6 +392,7 @@ const App: React.FC = () => {
                             <div className="relative h-[250px]">
                                 <AdvancedVisualizer
                                     title="Recovery Comparison (Original vs Recovered)"
+                                    infoText="Blue = original message signal. Orange = demodulated signal through the noisy channel. Ideally these overlap perfectly. Reduce SNR on the slider to watch the orange trace diverge from blue — that divergence is noise-induced distortion. The Correlation % (top right) quantifies alignment: 100% = perfect, <80% = noticeable degradation, <50% = poor."
                                     layers={[
                                         { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
                                         { data: signals.demodulated, color: '#ff8844', label: 'Demodulated' }
@@ -407,6 +409,7 @@ const App: React.FC = () => {
                             <div className="h-[250px]">
                                 <AdvancedVisualizer
                                     title="Ideal Recovery (Perfect Channel)"
+                                    infoText="Same demodulation algorithm, but zero noise applied. This is the theoretical best-case output. Comparing this to the Recovery Comparison panel isolates noise impact from demodulator distortion. If Ideal Recovery doesn't match the message, the demodulator or parameters need adjustment. If it matches but noisy recovery doesn't — that's pure noise degradation."
                                     layers={[
                                         { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
                                         { data: signals.demodIdeal, color: '#44ff88', label: 'Ideal' }
@@ -433,7 +436,12 @@ const App: React.FC = () => {
 
                     {viewMode === 'chain' && (
                         <div className="h-full min-h-[500px]">
-                            <ChainView signals={signals} />
+                            <ChainView
+                                signals={signals}
+                                externalZoom={syncView ? sharedZoom : undefined}
+                                externalOffset={syncView ? sharedOffset : undefined}
+                                onViewChange={syncView ? handleViewChange : undefined}
+                            />
                         </div>
                     )}
 
@@ -468,10 +476,9 @@ const App: React.FC = () => {
                 currentSnr={snr}
             />
 
-            <HelpModal
+            <UserGuide
                 isOpen={helpModalOpen}
                 onClose={() => setHelpModalOpen(false)}
-                modulation={modulation}
             />
 
             <DemoMode

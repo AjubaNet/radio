@@ -119,12 +119,18 @@ export const BERCurveModal: React.FC<Props> = ({ isOpen, onClose, currentModulat
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>
-      <div className="relative bg-[#0a0a1e] border border-[#00d4ff]/30 rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="relative bg-[#0a0a1e] border border-[#00d4ff]/30 rounded-2xl overflow-hidden shadow-2xl w-[600px]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#00d4ff]/20 bg-[#00d4ff]/5">
           <span className="text-sm font-bold text-[#00d4ff] uppercase tracking-wider">BER vs SNR Curves</span>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-white transition-colors"><X size={16} /></button>
         </div>
         <canvas ref={canvasRef} style={{ width: 560, height: 380, display: 'block' }} />
+        <div className="px-5 py-3 border-t border-white/10 bg-black/30 text-[10px] text-gray-400 leading-relaxed space-y-1">
+          <p><span className="text-[#00d4ff] font-bold">What is BER?</span> Bit Error Rate = probability a received bit is decoded incorrectly. BER = 10⁻³ means 1 bit in 1,000 is wrong.</p>
+          <p><span className="text-yellow-400 font-bold">Log scale:</span> Y-axis is logarithmic. 10⁻¹ = 10% errors (very bad), 10⁻⁶ = 1-in-a-million (excellent). Each gridline is 10× better.</p>
+          <p><span className="text-green-400 font-bold">Reading curves:</span> Lower curve = better performance. Steeper slope = more benefit from increasing SNR. Curves that flatten out have an irreducible error floor.</p>
+          <p><span className="text-orange-400 font-bold">Red dot</span> = your current operating point (selected modulation at current SNR). Move the SNR slider to watch it travel along the curve.</p>
+        </div>
       </div>
     </div>
   );
