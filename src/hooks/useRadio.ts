@@ -84,24 +84,41 @@ export const useRadio = () => {
         const engine = new RadioEngine(sampleRate);
         
         const isDigital = ['ask', 'fsk', 'psk', 'qam', 'dsss', 'fhss'].includes(modulation);
-        const duration = 0.1;
+        const isMelodyMsg = messageType === 'melody';
+        // Generate a bitStream whenever modulation needs it OR message type is 'digital'
+        const needsBitStream = isDigital || messageType === 'digital';
         
         let message: Float32Array;
         let bitStream: Uint8Array | undefined;
 
-        if (isDigital) {
-            // numBits: use bitRate×duration, ensure multiple of 4 for QAM, minimum 4
-            const rawBits = Math.max(4, Math.round(bitRate * duration));
+        if (needsBitStream) {
+            // numBits: use bitRate×0.1 for consistency, ensure multiple of 4 for QAM, minimum 4
+            const rawBits = Math.max(4, Math.round(bitRate * 0.1));
             const numBits = modulation === 'qam' ? Math.max(4, Math.round(rawBits / 4) * 4) : rawBits;
             bitStream = new Uint8Array(numBits);
             const rng = deterministicBits ? mulberry32(42) : Math.random.bind(Math);
             for (let i = 0; i < numBits; i++) bitStream[i] = rng() > 0.5 ? 1 : 0;
-            message = sigGen.generateMessage(msgFreq, messageType === 'digital' ? 'sine' : messageType, 0.5, duration, bitStream);
+            // Always pass bitStream — generateMessage will create ±1 pulse train
+            message = sigGen.generateMessage(msgFreq, 'digital', 0.5, 0.1, bitStream);
+        } else if (isMelodyMsg) {
+            // Build melody as message signal
+            const rhyme = NURSERY_RHYMES.twinkle;
+            const noteDuration = rhyme.duration / rhyme.frequencies.length;
+            let melody = new Float32Array(0);
+            for (const freq of rhyme.frequencies) {
+                const note = sigGen.generateMessage(freq, 'sine', 0.5, noteDuration);
+                const combined = new Float32Array(melody.length + note.length);
+                combined.set(melody);
+                combined.set(note, melody.length);
+                melody = combined;
+            }
+            message = melody;
         } else {
-            message = sigGen.generateMessage(msgFreq, messageType, 0.5, duration);
+            message = sigGen.generateMessage(msgFreq, messageType, 0.5, 0.1);
         }
 
-        const carrier = sigGen.generateCarrier(carrierFreq, 1, duration);
+        const sigDuration = message.length / sampleRate;
+        const carrier = sigGen.generateCarrier(carrierFreq, 1, sigDuration);
         const modulated = engine.modulate(modulation, carrier, message, modIndex, carrierFreq, bitStream, msgFreq);
         const noise = sigGen.addNoise(modulated, snr);
 

@@ -43,12 +43,19 @@ const DEMO_STEPS: DemoStep[] = [
         tip: "Increase the Modulation Index slider and watch the Modulated panel change dramatically. In AM, deeper modulation = wider envelope swing. In FM, wider frequency deviation = denser wave oscillations."
     },
     {
-        title: "Stage 4: Recovery Through Noise",
-        narration: "The bottom two panels show what the receiver hears. Ideal Recovery (green) is demodulation with zero noise — the theoretical best case. Noisy Recovery (orange) passes through a channel with the SNR you set. Lower the SNR slider to watch the orange trace diverge from green. The Correlation % quantifies how close they are — real radio systems use error correction (FEC, LDPC, Turbo codes) to push this toward 100% even at very low SNR.",
+        title: "Stage 4: Ideal Recovery (Perfect Channel)",
+        narration: "The Ideal Recovery panel (green) shows demodulation with zero noise — the mathematical best case assuming a perfect, noiseless channel. This is the theoretical ceiling for any demodulator. If Ideal Recovery doesn't closely match your original Message, it indicates a parameter mismatch (e.g. carrier frequency mismatch, wrong modulation index) rather than noise damage. This is your 'demodulator health check'.",
+        viewMode: 'chain',
+        panelHighlight: 'Ideal Recovery',
+        tip: "Compare the Ideal Recovery panel to the Message panel. They should match closely for a well-configured modulation. If they don't, try clicking ⚡ Reset Defaults and observe how the match improves."
+    },
+    {
+        title: "Stage 5: Noisy Recovery (Real Channel)",
+        narration: "The Noisy Recovery panel (orange) shows what a real receiver hears after the signal has passed through a channel with added Gaussian noise. Lower the SNR slider to watch the orange trace diverge from the Ideal Recovery (green) — that divergence is noise damage. Real-world systems layer FEC (error correction), OFDM, and MIMO on top of modulation to push recovery quality back toward ideal even at very low SNR.",
         viewMode: 'chain',
         panelHighlight: 'Noisy Recovery',
         audio: 'demodulated',
-        tip: "Compare AM vs FM at SNR = 10 dB. FM's Noisy Recovery stays closer to the Ideal Recovery — that's FM's noise immunity advantage in action."
+        tip: "Try AM vs FM at SNR = 10 dB. FM's orange trace stays much closer to the green ideal — that's FM's famous noise immunity. For digital modes, try PSK vs ASK at SNR = 8 dB to see PSK's BER advantage."
     }
 ];
 

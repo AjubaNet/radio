@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRadio } from './hooks/useRadio';
+import { useTheme } from './hooks/useTheme';
 import { AdvancedVisualizer } from './components/visualization/AdvancedVisualizer';
 import { ConstellationDiagram } from './components/visualization/ConstellationDiagram';
 import { SpectrumVisualizer } from './components/visualization/SpectrumVisualizer';
@@ -11,9 +12,10 @@ import { UserGuide } from './components/ui/UserGuide';
 import { DemoMode } from './components/ui/DemoMode';
 import { ModulationGuide } from './components/educational/ModulationGuide';
 import type { ModulationType, ModulationCategory } from './types/radio';
-import { Radio, Settings2, Activity, Play, Download, Share2, Layers, BookOpen, Music, Link, Link2Off, Waves, TrendingUp, HelpCircle, Presentation } from 'lucide-react';
+import { Radio, Settings2, Play, Download, Share2, Layers, BookOpen, Music, Link, Link2Off, Waves, TrendingUp, HelpCircle, Presentation, Sun, Moon } from 'lucide-react';
 
 const App: React.FC = () => {
+    const { theme, toggleTheme } = useTheme();
     const {
         modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate, bitRate,
         signals, metrics, constellation,
@@ -64,12 +66,13 @@ const App: React.FC = () => {
     };
 
     const messageTypes = [
-        { id: 'sine', label: 'Sine' },
-        { id: 'square', label: 'Square' },
-        { id: 'sawtooth', label: 'Sawtooth' },
-        { id: 'triangle', label: 'Triangle' },
-        { id: 'noise', label: 'Noise' },
-        { id: 'digital', label: 'Digital' }
+        { id: 'sine',     label: 'Sine',     title: 'Continuous sine wave' },
+        { id: 'square',   label: 'Square',   title: 'Square wave (±1 at message freq)' },
+        { id: 'sawtooth', label: 'Sawtooth', title: 'Sawtooth/ramp wave' },
+        { id: 'triangle', label: 'Triangle', title: 'Triangle wave' },
+        { id: 'noise',    label: 'Noise',    title: 'White Gaussian noise as message' },
+        { id: 'digital',  label: 'Digital',  title: 'Binary ±1 pulse train (NRZ bit stream)' },
+        { id: 'melody',   label: '🎵 Melody', title: 'Multi-note melody (Twinkle) as message' },
     ];
 
     const isDigital = ['ask', 'fsk', 'psk', 'qam', 'dsss', 'fhss'].includes(modulation);
@@ -88,10 +91,14 @@ const App: React.FC = () => {
     const samplesPerSymbol = Math.max(1, Math.floor(sampleRate / bitRate));
 
     return (
-        <div className="flex h-screen bg-[#050510] text-gray-100 overflow-hidden font-sans">
+        <div className={`flex h-screen text-gray-100 overflow-hidden font-sans theme-app ${theme === 'light' ? '[color-scheme:light]' : '[color-scheme:dark]'}`}
+            style={{ background: 'var(--bg-app)', color: 'var(--text-pri)' }}
+        >
             {/* Left sidebar */}
-            <aside className="w-80 flex flex-col border-r border-[#00d4ff]/20 bg-[#1a1a2e]/40 backdrop-blur-xl">
-                <header className="p-6 border-b border-[#00d4ff]/20 bg-[#00d4ff]/5">
+            <aside className="w-80 flex flex-col border-r backdrop-blur-xl theme-surface"
+                style={{ borderColor: 'var(--border-sub)', background: 'var(--bg-surface)' }}
+            >
+                <header className="p-6 border-b" style={{ borderColor: 'var(--border-acc)', background: 'var(--bg-card)' }}>
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#00d4ff] rounded-lg text-[#1a1a2e]">
                             <Radio size={24} />
@@ -110,6 +117,7 @@ const App: React.FC = () => {
                                 <button
                                     key={mt.id}
                                     onClick={() => setMessageType(mt.id)}
+                                    title={mt.title}
                                     className={`px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
                                         messageType === mt.id 
                                         ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white' 
@@ -276,7 +284,7 @@ const App: React.FC = () => {
 
             <main className="flex-1 flex flex-col min-w-0">
                 {/* Metrics header */}
-                <div className="flex items-center justify-between px-8 border-b border-[#00d4ff]/10 bg-[#1a1a2e]/20 backdrop-blur-sm" style={{minHeight: '4rem'}}>
+                <div className="flex items-center justify-between px-8 backdrop-blur-sm border-b" style={{minHeight: '4rem', background: 'var(--bg-surface)', borderColor: 'var(--border-sub)'}}>
                     <div className="flex gap-6 flex-wrap">
                         <div className="flex flex-col">
                             <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">Measured SNR</span>
@@ -327,6 +335,14 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={toggleTheme}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold border transition-all bg-white/5 border-white/10 hover:bg-white/10"
+                            style={{ color: 'var(--text-sec)' }}
+                            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                        >
+                            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                        </button>
                         <button onClick={() => setBerModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-400 text-xs font-bold hover:bg-purple-500 hover:text-white transition-all">
                             <TrendingUp size={14} /> BER Curves
                         </button>
@@ -345,12 +361,6 @@ const App: React.FC = () => {
                             }`}
                         >
                             <Music size={14} /> Melody
-                        </button>
-                        <button onClick={() => selectedMelody ? playMelody(selectedMelody, 'modulated') : playSignal('modulated')} className="flex items-center gap-2 px-4 py-2 bg-[#00d4ff]/10 border border-[#00d4ff]/30 rounded-lg text-[#00d4ff] text-xs font-bold hover:bg-[#00d4ff] hover:text-[#1a1a2e] transition-all">
-                            <Play size={14} fill="currentColor" /> TX Signal
-                        </button>
-                        <button onClick={() => selectedMelody ? playMelody(selectedMelody, 'demodulated') : playSignal('demodulated')} className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-xs font-bold hover:bg-green-500 hover:text-[#1a1a2e] transition-all">
-                            <Activity size={14} /> RX Recovery
                         </button>
                     </div>
                 </div>
