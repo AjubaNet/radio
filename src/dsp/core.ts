@@ -1,5 +1,11 @@
 import type { ModulationType } from '../types/radio';
 
+/** Configuration constants for internal DSP logic */
+export const CONFIG = {
+    bitDuration: 0.01, // 10ms per bit
+    defaultSampleRate: 44100
+};
+
 export class SimpleFFT {
     size: number;
     constructor(size: number) {
@@ -187,10 +193,9 @@ export class RadioEngine {
                 const spbQam = Math.floor(n / numSymbols);
                 for (let i = 0; i < numSymbols; i++) {
                     const b = bitStream.slice(i * 4, i * 4 + 4);
-                    // Gray coded mapping
                     const I_bits = (b[0] << 1) | b[1];
                     const Q_bits = (b[2] << 1) | b[3];
-                    const grayMap = [0, 1, 3, 2]; // index to value mapping
+                    const grayMap = [0, 1, 3, 2];
                     const I = this.qamAlphabet[grayMap.indexOf(I_bits)];
                     const Q = this.qamAlphabet[grayMap.indexOf(Q_bits)];
                     for (let s = 0; s < spbQam; s++) {
@@ -312,7 +317,7 @@ export class RadioEngine {
                 }
                 break;
             case 'qam':
-                const symbolDuration = Math.floor(this.sampleRate * 0.01 * 4); // matched to useRadio logic
+                const symbolDuration = Math.floor(this.sampleRate * 0.01 * 4);
                 const points: {I: number, Q: number}[] = [];
                 for (let i = 0; i < n; i += symbolDuration) {
                     let I = 0, Q = 0, cnt = 0;
@@ -326,7 +331,7 @@ export class RadioEngine {
                     Q = (2 * Q) / cnt;
                     points.push({ I, Q });
                     for (let s = 0; s < symbolDuration && (i + s) < n; s++) {
-                        out[i + s] = I + Q; // Combined for visualization
+                        out[i + s] = I + Q;
                     }
                 }
                 constellationPoints = points;
@@ -367,5 +372,107 @@ export class RadioEngine {
         }
         
         return { waveform: out, constellation: constellationPoints };
+    }
+}
+
+export class DigitalModulator {
+    sampleRate: number;
+    constructor(sampleRate = CONFIG.defaultSampleRate) {
+        this.sampleRate = sampleRate;
+    }
+
+    modulate_16QAM(carrierFreq: number, bitStream: Uint8Array, duration = 1): Float32Array {
+        const samples = Math.floor(this.sampleRate * duration);
+        const modulated = new Float32Array(samples);
+        const bitsPerSymbol = 4;
+        const symbolDurationSamples = Math.floor(this.sampleRate * CONFIG.bitDuration * bitsPerSymbol);
+
+        const scale = 1 / Math.sqrt(10);
+        const constellation: [number, number][] = [
+            [-3, -3], [-3, -1], [-1, -3], [-1, -1],
+            [-3,  3], [-3,  1], [-1,  3], [-1,  1],
+            [ 3, -3], [ 3, -1], [ 1, -3], [ 1, -1],
+            [ 3,  3], [ 3,  1], [ 1,  3], [ 1,  1]
+        ].map(([i, q]) => [i * scale, q * scale]);
+
+        let symbolIndex = 0;
+        for (let i = 0; i < samples; i += symbolDurationSamples) {
+            let symbolValue = 0;
+            for (let b = 0; b < 4; b++) {
+                const bitPos = symbolIndex * 4 + b;
+                if (bitPos < bitStream.length) {
+                    symbolValue = (symbolValue << 1) | bitStream[bitPos];
+                }
+            }
+            const [I, Q] = constellation[symbolValue % 16];
+            for (let j = 0; j < symbolDurationSamples && (i + j) < samples; j++) {
+                const t = i + j;
+                const phase = 2 * Math.PI * carrierFreq * t / this.sampleRate;
+                modulated[i + j] = I * Math.cos(phase) - Q * Math.sin(phase);
+            }
+            symbolIndex++;
+        }
+        return modulated;
+    }
+
+    demodulate_16QAM(signal: Float32Array, carrierFreq: number): Uint8Array {
+        const bitsPerSymbol = 4;
+        const symbolDurationSamples = Math.floor(this.sampleRate * CONFIG.bitDuration * bitsPerSymbol);
+        const recoveredBits: number[] = [];
+
+        const scale = 1 / Math.sqrt(10);
+        const constellation: [number, number][] = [
+            [-3, -3], [-3, -1], [-1, -3], [-1, -1],
+            [-3,  3], [-3,  1], [-1,  3], [-1,  1],
+            [ 3, -3], [ 3, -1], [ 1, -3], [ 1, -1],
+            [ 3,  3], [ 3,  1], [ 1,  3], [ 1,  1]
+        ].map(([i, q]) => [i * scale, q * scale]);
+
+        for (let start = 0; start < signal.length; start += symbolDurationSamples) {
+            let I = 0, Q = 0;
+            const end = Math.min(start + symbolDurationSamples, signal.length);
+            for (let j = start; j < end; j++) {
+                const phase = 2 * Math.PI * carrierFreq * j / this.sampleRate;
+                I += signal[j] * Math.cos(phase);
+                Q += signal[j] * -Math.sin(phase);
+            }
+            const norm = end - start || 1;
+            I = (2 * I) / norm;
+            Q = (2 * Q) / norm;
+
+            let bestIdx = 0;
+            let minDist = Infinity;
+            for (let k = 0; k < 16; k++) {
+                const [ci, cq] = constellation[k];
+                const dist = (I - ci)**2 + (Q - cq)**2;
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestIdx = k;
+                }
+            }
+            for (let b = 3; b >= 0; b--) {
+                recoveredBits.push((bestIdx >> b) & 1);
+            }
+        }
+        return new Uint8Array(recoveredBits);
+    }
+}
+
+export class Analysis {
+    calculateSNR(original: Float32Array, noisy: Float32Array): number {
+        let signalPower = 0, noisePower = 0;
+        for (let i = 0; i < original.length; i++) {
+            signalPower += original[i] * original[i];
+            const noise = noisy[i] - original[i];
+            noisePower += noise * noise;
+        }
+        return 10 * Math.log10((signalPower / original.length) / Math.max(noisePower / original.length, 1e-12));
+    }
+
+    calculateBER(original: Uint8Array, recovered: Uint8Array): number {
+        let errors = 0;
+        const n = Math.min(original.length, recovered.length);
+        for (let i = 0; i < n; i++) if (original[i] !== recovered[i]) errors++;
+        return n > 0 ? (errors / n) * 100 : 0;
     }
 }

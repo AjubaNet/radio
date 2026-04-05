@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface VisualizerLayer {
@@ -10,12 +10,63 @@ interface VisualizerLayer {
 interface Props {
     layers: VisualizerLayer[];
     title: string;
+    externalZoom?: number;
+    externalOffset?: number;
+    onViewChange?: (zoom: number, offset: number) => void;
 }
 
-export const AdvancedVisualizer: React.FC<Props> = ({ layers, title }) => {
+export const AdvancedVisualizer: React.FC<Props> = ({ 
+    layers, title, externalZoom, externalOffset, onViewChange 
+}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [zoom, setZoom] = useState(1);
-    const [offset, setOffset] = useState(0);
+    const [internalZoom, setInternalZoom] = useState(1);
+    const [internalOffset, setInternalOffset] = useState(0);
+    const [isDragging, setIsPlaying] = useState(false);
+    const [lastX, setLastX] = useState(0);
+
+    const zoom = externalZoom !== undefined ? externalZoom : internalZoom;
+    const offset = externalOffset !== undefined ? externalOffset : internalOffset;
+
+    const updateView = useCallback((newZoom: number, newOffset: number) => {
+        const clampedZoom = Math.max(1, Math.min(newZoom, 100));
+        const clampedOffset = Math.max(0, Math.min(newOffset, 1));
+        if (onViewChange) {
+            onViewChange(clampedZoom, clampedOffset);
+        } else {
+            setInternalZoom(clampedZoom);
+            setInternalOffset(clampedOffset);
+        }
+    }, [onViewChange]);
+
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) {
+            // Zoom
+            const factor = e.deltaY > 0 ? 0.9 : 1.1;
+            updateView(zoom * factor, offset);
+        } else {
+            // Scroll (Pan)
+            const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+            const scrollSpeed = 0.001 / zoom;
+            updateView(zoom, offset + delta * scrollSpeed);
+        }
+    }, [zoom, offset, updateView]);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsPlaying(true);
+        setLastX(e.clientX);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastX;
+        setLastX(e.clientX);
+        // Map pixel drag to offset change
+        const dragSpeed = 1 / (zoom * 500); // Sensitivity
+        updateView(zoom, offset - dx * dragSpeed);
+    };
+
+    const handleMouseUp = () => setIsPlaying(false);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -55,7 +106,8 @@ export const AdvancedVisualizer: React.FC<Props> = ({ layers, title }) => {
             ctx.beginPath();
 
             const visibleSamples = Math.floor(signal.length / zoom);
-            const startSample = Math.floor(offset * (signal.length - visibleSamples));
+            const maxOffsetRange = signal.length - visibleSamples;
+            const startSample = Math.floor(offset * maxOffsetRange);
 
             for (let i = 0; i < width; i++) {
                 const signalIdx = startSample + Math.floor((i / width) * visibleSamples);
@@ -74,22 +126,35 @@ export const AdvancedVisualizer: React.FC<Props> = ({ layers, title }) => {
     }, [layers, zoom, offset]);
 
     return (
-        <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden">
+        <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden shadow-lg shadow-primary/5 group">
             <div className="flex items-center justify-between px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setZoom(prev => Math.min(prev * 1.5, 20))} className="p-1 hover:bg-[#00d4ff]/20 rounded text-[#00d4ff]"><ZoomIn size={14} /></button>
-                    <button onClick={() => setZoom(prev => Math.max(prev / 1.5, 1))} className="p-1 hover:bg-[#00d4ff]/20 rounded text-[#00d4ff]"><ZoomOut size={14} /></button>
-                    <button onClick={() => { setZoom(1); setOffset(0); }} className="p-1 hover:bg-[#00d4ff]/20 rounded text-[#00d4ff]"><RotateCcw size={14} /></button>
+                <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
+                    <span className="text-[10px] text-gray-500 font-mono">Zoom: {zoom.toFixed(1)}x</span>
+                </div>
+                <div className="flex items-center gap-2 text-[#00d4ff]">
+                    <button onClick={() => updateView(zoom * 1.5, offset)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><ZoomIn size={14} /></button>
+                    <button onClick={() => updateView(zoom / 1.5, offset)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><ZoomOut size={14} /></button>
+                    <button onClick={() => updateView(1, 0)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><RotateCcw size={14} /></button>
                 </div>
             </div>
-            <div className="relative flex-1 min-h-[200px]">
-                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair" />
+            <div 
+                className="relative flex-1 min-h-[200px] cursor-grab active:cursor-grabbing select-none"
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+            >
+                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+                <div className="absolute bottom-4 left-4 text-[9px] text-primary/40 font-mono hidden group-hover:block">
+                    DRAG TO PAN • WHEEL TO SCROLL • CTRL+WHEEL TO ZOOM
+                </div>
                 {zoom > 1 && (
                     <input 
-                        type="range" min="0" max="1" step="0.01" 
-                        value={offset} onChange={(e) => setOffset(parseFloat(e.target.value))}
-                        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/2 h-1 accent-[#00d4ff] appearance-none bg-white/10 rounded-full"
+                        type="range" min="0" max="1" step="0.001" 
+                        value={offset} onChange={(e) => updateView(zoom, parseFloat(e.target.value))}
+                        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/2 h-1 accent-[#00d4ff] appearance-none bg-white/10 rounded-full cursor-pointer"
                     />
                 )}
             </div>

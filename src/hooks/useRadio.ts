@@ -5,6 +5,7 @@ import { MODULATION_DEFAULTS, NURSERY_RHYMES } from '../constants/modulationData
 
 export const useRadio = () => {
     const [modulation, setModulation] = useState<ModulationType>('am');
+    const [messageType, setMessageType] = useState<string>('sine');
     const [carrierFreq, setCarrierFreq] = useState(1000);
     const [msgFreq, setMsgFreq] = useState(100);
     const [modIndex, setModIndex] = useState(0.5);
@@ -19,6 +20,8 @@ export const useRadio = () => {
         demodIdeal: new Float32Array(0),
         noise: new Float32Array(0)
     });
+
+    const [constellation, setConstellation] = useState<{I: number, Q: number}[]>([]);
 
     const [metrics, setMetrics] = useState<RadioMetrics>({
         snr: 0,
@@ -44,21 +47,33 @@ export const useRadio = () => {
         let bitStream: Uint8Array | undefined;
 
         if (isDigital) {
-            bitStream = new Uint8Array(16);
-            for (let i = 0; i < 16; i++) bitStream[i] = Math.random() > 0.5 ? 1 : 0;
-            message = sigGen.generateMessage(msgFreq, 'sine', 0.5, duration, bitStream);
+            const numBits = modulation === 'qam' ? 16 : 16;
+            bitStream = new Uint8Array(numBits);
+            for (let i = 0; i < numBits; i++) bitStream[i] = Math.random() > 0.5 ? 1 : 0;
+            message = sigGen.generateMessage(msgFreq, messageType === 'digital' ? 'sine' : messageType, 0.5, duration, bitStream);
         } else {
-            message = sigGen.generateMessage(msgFreq, 'sine', 0.5, duration);
+            message = sigGen.generateMessage(msgFreq, messageType, 0.5, duration);
         }
 
         const carrier = sigGen.generateCarrier(carrierFreq, 1, duration);
         const modulated = engine.modulate(modulation, carrier, message, modIndex, carrierFreq, bitStream);
         const noise = sigGen.addNoise(modulated, snr);
         
-        const demodIdeal = engine.demodulate(modulation, modulated, carrierFreq);
-        const demodulated = engine.demodulate(modulation, noise, carrierFreq);
+        const idealResult = engine.demodulate(modulation, modulated, carrierFreq);
+        const noisyResult = engine.demodulate(modulation, noise, carrierFreq);
 
-        setSignals({ carrier, message, modulated, demodulated, demodIdeal, noise });
+        setSignals({ 
+            carrier, message, modulated, 
+            demodulated: noisyResult.waveform, 
+            demodIdeal: idealResult.waveform, 
+            noise 
+        });
+        
+        if (noisyResult.constellation) {
+            setConstellation(noisyResult.constellation);
+        } else {
+            setConstellation([]);
+        }
         
         setMetrics(prev => ({
             ...prev,
@@ -68,7 +83,7 @@ export const useRadio = () => {
             bandwidth: modulation === 'am' ? msgFreq * 2 : msgFreq * (1 + modIndex) * 2
         }));
 
-    }, [modulation, carrierFreq, msgFreq, modIndex, snr, sampleRate]);
+    }, [modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate]);
 
     useEffect(() => {
         generateSignals();
@@ -78,10 +93,8 @@ export const useRadio = () => {
         const sigGen = new SignalGenerator(sampleRate);
         const engine = new RadioEngine(sampleRate);
         const rhyme = NURSERY_RHYMES.twinkle;
-        
         const noteDuration = rhyme.duration / rhyme.frequencies.length;
         let fullMelody = new Float32Array(0);
-        
         for (const freq of rhyme.frequencies) {
             const note = sigGen.generateMessage(freq, 'sine', 0.5, noteDuration);
             const combined = new Float32Array(fullMelody.length + note.length);
@@ -89,13 +102,11 @@ export const useRadio = () => {
             combined.set(note, fullMelody.length);
             fullMelody = combined;
         }
-
         const carrier = sigGen.generateCarrier(carrierFreq, 1, rhyme.duration);
         const modulated = engine.modulate(modulation, carrier, fullMelody, modIndex, carrierFreq);
         const noise = sigGen.addNoise(modulated, snr);
-        const demodulated = engine.demodulate(modulation, noise, carrierFreq);
-
-        await playSignalData(demodulated);
+        const result = engine.demodulate(modulation, noise, carrierFreq);
+        await playSignalData(result.waveform);
     };
 
     const playSignalData = async (signal: Float32Array) => {
@@ -103,14 +114,11 @@ export const useRadio = () => {
             audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
         if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume();
-
         const buffer = audioCtxRef.current.createBuffer(1, signal.length, audioCtxRef.current.sampleRate);
         const data = buffer.getChannelData(0);
-        
         let max = 0;
         for (let i = 0; i < signal.length; i++) max = Math.max(max, Math.abs(signal[i]));
-        for (let i = 0; i < signal.length; i++) data[i] = max > 0 ? signal[i] / (max * 1.1) : 0;
-
+        for (let i = 0; i < signal.length; i++) data[i] = max > 0 ? (signal[i] / (max * 1.1)) : 0;
         if (sourceRef.current) try { sourceRef.current.stop(); } catch(e) {}
         const source = audioCtxRef.current.createBufferSource();
         source.buffer = buffer;
@@ -136,9 +144,9 @@ export const useRadio = () => {
     };
 
     return {
-        modulation, carrierFreq, msgFreq, modIndex, snr, sampleRate,
-        signals, metrics,
-        setCarrierFreq, setMsgFreq, setModIndex, setSnr,
+        modulation, messageType, carrierFreq, msgFreq, modIndex, snr, sampleRate,
+        signals, metrics, constellation,
+        setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType,
         handleModulationChange, playSignal, playLongTrack, generateSignals
     };
 };

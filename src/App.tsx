@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
 import { useRadio } from './hooks/useRadio';
 import { AdvancedVisualizer } from './components/visualization/AdvancedVisualizer';
+import { ConstellationDiagram } from './components/visualization/ConstellationDiagram';
 import { ModulationGuide } from './components/educational/ModulationGuide';
 import type { ModulationType, ModulationCategory } from './types/radio';
-import { Radio, Settings2, Activity, Play, Download, Share2, Layers, BookOpen, Music } from 'lucide-react';
+import { Radio, Settings2, Activity, Play, Download, Share2, Layers, BookOpen, Music, Link, Link2Off, Waves } from 'lucide-react';
 
 const App: React.FC = () => {
     const {
-        modulation, carrierFreq, msgFreq, modIndex, snr, signals, metrics,
-        setCarrierFreq, setMsgFreq, setModIndex, setSnr,
+        modulation, messageType, carrierFreq, msgFreq, modIndex, snr, signals, metrics, constellation,
+        setCarrierFreq, setMsgFreq, setModIndex, setSnr, setMessageType,
         handleModulationChange, playSignal, playLongTrack
     } = useRadio();
 
     const [activeTab, setActiveTab] = useState<ModulationCategory>('analog');
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [syncView, setSyncView] = useState(true);
+    const [sharedZoom, setSharedZoom] = useState(1);
+    const [sharedOffset, setSharedOffset] = useState(0);
+
+    const handleViewChange = (zoom: number, offset: number) => {
+        setSharedZoom(zoom);
+        setSharedOffset(offset);
+    };
 
     const categories: {id: ModulationCategory, label: string}[] = [
         { id: 'analog', label: 'Analog' },
@@ -29,6 +38,17 @@ const App: React.FC = () => {
         spread: ['dsss', 'fhss']
     };
 
+    const messageTypes = [
+        { id: 'sine', label: 'Sine' },
+        { id: 'square', label: 'Square' },
+        { id: 'sawtooth', label: 'Sawtooth' },
+        { id: 'triangle', label: 'Triangle' },
+        { id: 'noise', label: 'Noise' },
+        { id: 'digital', label: 'Digital' }
+    ];
+
+    const isDigital = ['ask', 'fsk', 'psk', 'qam', 'dsss', 'fhss'].includes(modulation);
+
     return (
         <div className="flex h-screen bg-[#050510] text-gray-100 overflow-hidden font-sans">
             <aside className="w-80 flex flex-col border-r border-[#00d4ff]/20 bg-[#1a1a2e]/40 backdrop-blur-xl">
@@ -42,6 +62,27 @@ const App: React.FC = () => {
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-[#00d4ff]/60 flex items-center gap-2">
+                            <Waves size={12} /> Message Type
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {messageTypes.map(mt => (
+                                <button
+                                    key={mt.id}
+                                    onClick={() => setMessageType(mt.id)}
+                                    className={`px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
+                                        messageType === mt.id 
+                                        ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white' 
+                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                    }`}
+                                >
+                                    {mt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="space-y-3">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-[#00d4ff]/60 flex items-center gap-2">
                             <Layers size={12} /> Category
@@ -142,8 +183,17 @@ const App: React.FC = () => {
                             <span className="text-sm font-mono font-bold text-white">{(metrics.bandwidth / 1000).toFixed(2)} kHz</span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">Bit Error Rate</span>
-                            <span className="text-sm font-mono font-bold text-white">{metrics.ber.toFixed(2)} %</span>
+                            <button 
+                                onClick={() => setSyncView(!syncView)}
+                                className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all ${
+                                    syncView 
+                                    ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-[#00d4ff]' 
+                                    : 'bg-white/5 border-white/10 text-gray-500'
+                                }`}
+                            >
+                                {syncView ? <Link size={12} /> : <Link2Off size={12} />}
+                                <span className="text-[10px] font-bold uppercase">Sync Time Window</span>
+                            </button>
                         </div>
                     </div>
 
@@ -161,28 +211,47 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto scrollbar-hide">
-                    <div className="lg:col-span-2">
+                    <div className={isDigital && constellation.length > 0 ? "lg:col-span-1 h-[300px]" : "lg:col-span-2 h-[300px]"}>
                         <AdvancedVisualizer 
                             title="Transmitted Modulated Waveform" 
                             layers={[{ data: signals.modulated, color: '#00d4ff', label: 'Modulated' }]} 
+                            externalZoom={syncView ? sharedZoom : undefined}
+                            externalOffset={syncView ? sharedOffset : undefined}
+                            onViewChange={syncView ? handleViewChange : undefined}
                         />
                     </div>
-                    
-                    <AdvancedVisualizer 
-                        title="Recovery Comparison (Original vs Recovered)" 
-                        layers={[
-                            { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
-                            { data: signals.demodulated, color: '#ff8844', label: 'Demodulated' }
-                        ]} 
-                    />
 
-                    <AdvancedVisualizer 
-                        title="Ideal Recovery (Perfect Channel)" 
-                        layers={[
-                            { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
-                            { data: signals.demodIdeal, color: '#44ff88', label: 'Ideal' }
-                        ]} 
-                    />
+                    {isDigital && constellation.length > 0 && (
+                        <div className="lg:col-span-1 h-[300px]">
+                            <ConstellationDiagram points={constellation} title="Constellation Diagram (I/Q)" />
+                        </div>
+                    )}
+                    
+                    <div className="h-[250px]">
+                        <AdvancedVisualizer 
+                            title="Recovery Comparison (Original vs Recovered)" 
+                            layers={[
+                                { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
+                                { data: signals.demodulated, color: '#ff8844', label: 'Demodulated' }
+                            ]} 
+                            externalZoom={syncView ? sharedZoom : undefined}
+                            externalOffset={syncView ? sharedOffset : undefined}
+                            onViewChange={syncView ? handleViewChange : undefined}
+                        />
+                    </div>
+
+                    <div className="h-[250px]">
+                        <AdvancedVisualizer 
+                            title="Ideal Recovery (Perfect Channel)" 
+                            layers={[
+                                { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
+                                { data: signals.demodIdeal, color: '#44ff88', label: 'Ideal' }
+                            ]} 
+                            externalZoom={syncView ? sharedZoom : undefined}
+                            externalOffset={syncView ? sharedOffset : undefined}
+                            onViewChange={syncView ? handleViewChange : undefined}
+                        />
+                    </div>
                 </div>
             </main>
 
