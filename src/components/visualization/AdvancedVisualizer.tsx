@@ -72,95 +72,108 @@ export const AdvancedVisualizer: React.FC<Props> = ({
     const handleMouseUp = () => setIsDragging(false);
 
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        let animationFrameId: number;
 
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
+        const draw = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
 
-        const width = rect.width;
-        const height = rect.height;
-
-        const style = getComputedStyle(document.body);
-        const bgPanel = style.getPropertyValue('--bg-panel').trim();
-        const borderSub = style.getPropertyValue('--border-sub').trim();
-
-        ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
-        ctx.lineWidth = 1;
-        for (let x = 0; x < width; x += width / 10) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
-        }
-        for (let y = 0; y < height; y += height / 4) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-        }
-
-        const centerY = height / 2;
-
-        let globalMax = 1e-10;
-        for (const layer of layers) {
-            if (!layer.data || layer.data.length === 0) continue;
-            for (let j = 0; j < layer.data.length; j++) {
-                const a = Math.abs(layer.data[j]);
-                if (a > globalMax) globalMax = a;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
             }
-        }
-        const scaleY = (height / 2.4) / globalMax;
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
 
-        layers.forEach((layer) => {
-            const signal = layer.data;
-            if (!signal || signal.length === 0) return;
+            const width = rect.width;
+            const height = rect.height;
 
-            let color = layer.color;
-            if (color.startsWith('var(')) {
-                color = style.getPropertyValue(color.match(/--[\w-]+/)![0]).trim();
+            const style = getComputedStyle(document.body);
+            const bgPanel = style.getPropertyValue('--bg-panel').trim();
+            const borderSub = style.getPropertyValue('--border-sub').trim();
+
+            ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < width; x += width / 10) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+            }
+            for (let y = 0; y < height; y += height / 4) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
             }
 
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
+            const centerY = height / 2;
 
-            const visibleSamples = Math.floor(signal.length / zoom);
-            const maxOffsetRange = signal.length - visibleSamples;
-            const startSample = Math.floor(offset * maxOffsetRange);
-            const samplesPerPixel = visibleSamples / width;
-
-            let pathStarted = false;
-
-            for (let i = 0; i < width; i++) {
-                const sStart = startSample + Math.floor(i * samplesPerPixel);
-                const sEnd = startSample + Math.floor((i + 1) * samplesPerPixel);
-                if (sStart >= signal.length) break;
-
-                if (sEnd <= sStart + 1 || samplesPerPixel < 1.5) {
-                    const val = signal[Math.min(sStart, signal.length - 1)];
-                    const y = centerY - val * scaleY;
-                    if (!pathStarted) { ctx.moveTo(i, y); pathStarted = true; }
-                    else ctx.lineTo(i, y);
-                } else {
-                    let minV = Infinity, maxV = -Infinity;
-                    const limit = Math.min(sEnd, signal.length);
-                    for (let j = sStart; j < limit; j++) {
-                        if (signal[j] < minV) minV = signal[j];
-                        if (signal[j] > maxV) maxV = signal[j];
-                    }
-                    const yHi = centerY - maxV * scaleY;
-                    const yLo = centerY - minV * scaleY;
-                    if (!pathStarted) { ctx.moveTo(i, (yHi + yLo) / 2); pathStarted = true; }
-                    ctx.lineTo(i, yHi);
-                    ctx.lineTo(i, yLo);
+            let globalMax = 1e-10;
+            for (const layer of layers) {
+                if (!layer.data || layer.data.length === 0) continue;
+                for (let j = 0; j < layer.data.length; j++) {
+                    const a = Math.abs(layer.data[j]);
+                    if (a > globalMax) globalMax = a;
                 }
             }
-            ctx.stroke();
-        });
+            const scaleY = (height / 2.4) / globalMax;
 
+            layers.forEach((layer) => {
+                const signal = layer.data;
+                if (!signal || signal.length === 0) return;
+
+                let color = layer.color;
+                if (color.startsWith('var(')) {
+                    color = style.getPropertyValue(color.match(/--[\w-]+/)![0]).trim();
+                }
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+
+                const visibleSamples = Math.floor(signal.length / zoom);
+                const maxOffsetRange = signal.length - visibleSamples;
+                const startSample = Math.floor(offset * maxOffsetRange);
+                const samplesPerPixel = visibleSamples / width;
+
+                let pathStarted = false;
+
+                for (let i = 0; i < width; i++) {
+                    const sStart = startSample + Math.floor(i * samplesPerPixel);
+                    const sEnd = startSample + Math.floor((i + 1) * samplesPerPixel);
+                    if (sStart >= signal.length) break;
+
+                    if (sEnd <= sStart + 1 || samplesPerPixel < 1.5) {
+                        const val = signal[Math.min(sStart, signal.length - 1)];
+                        const y = centerY - val * scaleY;
+                        if (!pathStarted) { ctx.moveTo(i, y); pathStarted = true; }
+                        else ctx.lineTo(i, y);
+                    } else {
+                        let minV = Infinity, maxV = -Infinity;
+                        const limit = Math.min(sEnd, signal.length);
+                        for (let j = sStart; j < limit; j++) {
+                            if (signal[j] < minV) minV = signal[j];
+                            if (signal[j] > maxV) maxV = signal[j];
+                        }
+                        const yHi = centerY - maxV * scaleY;
+                        const yLo = centerY - minV * scaleY;
+                        if (!pathStarted) { ctx.moveTo(i, (yHi + yLo) / 2); pathStarted = true; }
+                        ctx.lineTo(i, yHi);
+                        ctx.lineTo(i, yLo);
+                    }
+                }
+                ctx.stroke();
+            });
+        };
+
+        // Use requestAnimationFrame to ensure the DOM and CSS variables have settled
+        animationFrameId = requestAnimationFrame(draw);
+
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+        };
     }, [layers, zoom, offset, theme]);
 
     return (

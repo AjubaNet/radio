@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useLayoutEffect } from 'react';
 
 export type Theme = 'dark' | 'light';
 
@@ -10,7 +10,7 @@ export function useTheme() {
         return (saved === 'light' ? 'light' : 'dark') as Theme;
     });
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem(STORAGE_KEY, theme);
     }, [theme]);

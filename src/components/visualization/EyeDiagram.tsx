@@ -13,69 +13,76 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, theme, t
   const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    let animationFrameId: number;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const draw = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-    const W = rect.width;
-    const H = rect.height;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
 
-    const style = getComputedStyle(document.body);
-    const bgPanel = style.getPropertyValue('--bg-panel').trim();
-    const borderSub = style.getPropertyValue('--border-sub').trim();
-    const accent = style.getPropertyValue('--accent').trim();
+        const W = rect.width;
+        const H = rect.height;
 
-    ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
-    ctx.fillRect(0, 0, W, H);
+        const style = getComputedStyle(document.body);
+        const bgPanel = style.getPropertyValue('--bg-panel').trim();
+        const borderSub = style.getPropertyValue('--border-sub').trim();
+        const accent = style.getPropertyValue('--accent').trim();
 
-    if (signal.length < samplesPerSymbol * 2) return;
+        ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
+        ctx.fillRect(0, 0, W, H);
 
-    let minV = Infinity, maxV = -Infinity;
-    for (let i = 0; i < signal.length; i++) {
-      if (signal[i] < minV) minV = signal[i];
-      if (signal[i] > maxV) maxV = signal[i];
-    }
-    const range = maxV - minV || 1;
+        if (signal.length < samplesPerSymbol * 2) return;
 
-    ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
-    ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H);
-    ctx.stroke();
+        let minV = Infinity, maxV = -Infinity;
+        for (let i = 0; i < signal.length; i++) {
+          if (signal[i] < minV) minV = signal[i];
+          if (signal[i] > maxV) maxV = signal[i];
+        }
+        const range = maxV - minV || 1;
 
-    const numTraces = Math.floor(signal.length / samplesPerSymbol) - 1;
-    ctx.strokeStyle = (accent || '#00d4ff') + '33';
-    ctx.lineWidth = 1;
-    for (let t = 0; t < numTraces; t++) {
-      const start = t * samplesPerSymbol;
-      ctx.beginPath();
-      for (let s = 0; s <= samplesPerSymbol; s++) {
-        const idx = start + s;
-        if (idx >= signal.length) break;
-        const x = (s / samplesPerSymbol) * W;
-        const y = H - ((signal[idx] - minV) / range) * H;
-        s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
+        ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
+        ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H);
+        ctx.stroke();
 
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(0, H / 2);
-    ctx.lineTo(W, H / 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
+        const numTraces = Math.floor(signal.length / samplesPerSymbol) - 1;
+        ctx.strokeStyle = (accent || '#00d4ff') + '33';
+        ctx.lineWidth = 1;
+        for (let t = 0; t < numTraces; t++) {
+          const start = t * samplesPerSymbol;
+          ctx.beginPath();
+          for (let s = 0; s <= samplesPerSymbol; s++) {
+            const idx = start + s;
+            if (idx >= signal.length) break;
+            const x = (s / samplesPerSymbol) * W;
+            const y = H - ((signal[idx] - minV) / range) * H;
+            s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
 
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(0, H / 2);
+        ctx.lineTo(W, H / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    };
+
+    animationFrameId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [signal, samplesPerSymbol, theme]);
 
   return (
@@ -96,7 +103,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, theme, t
       {showInfo && (
         <div className="px-4 py-3 border-b text-xs leading-relaxed transition-colors duration-200" 
             style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}>
-          <strong>Eye Diagram:</strong> All symbol periods overlaid. Wide-open eye = reliable decoding.
+          <strong>Eye Diagram:</strong> All symbol periods overlaid. Wide eye = reliable decoding.
         </div>
       )}
       <div className="relative flex-1">

@@ -19,50 +19,58 @@ export const ConstellationDiagram: React.FC<Props> = ({ points, title, theme }) 
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    let animationFrameId: number;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const draw = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-    const width = rect.width;
-    const height = rect.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const scale = Math.min(width, height) * 0.4;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
 
-    const style = getComputedStyle(document.body);
-    const bgPanel = style.getPropertyValue('--bg-panel').trim();
-    const borderSub = style.getPropertyValue('--border-sub').trim();
-    const accent = style.getPropertyValue('--accent').trim();
+        const width = rect.width;
+        const height = rect.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const scale = Math.min(width, height) * 0.4;
 
-    ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
-    ctx.fillRect(0, 0, width, height);
+        const style = getComputedStyle(document.body);
+        const bgPanel = style.getPropertyValue('--bg-panel').trim();
+        const borderSub = style.getPropertyValue('--border-sub').trim();
+        const accent = style.getPropertyValue('--accent').trim();
 
-    ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.2)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
-    ctx.moveTo(centerX, 0); ctx.lineTo(centerX, height);
-    ctx.stroke();
+        ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
+        ctx.fillRect(0, 0, width, height);
 
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
-    ctx.stroke();
+        ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
+        ctx.moveTo(centerX, 0); ctx.lineTo(centerX, height);
+        ctx.stroke();
 
-    ctx.fillStyle = accent || '#00d4ff';
-    points.forEach(p => {
-      const x = centerX + p.I * scale;
-      const y = centerY - p.Q * scale;
-      ctx.beginPath();
-      ctx.arc(x, y, 3, 0, 2 * Math.PI);
-      ctx.fill();
-    });
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        ctx.fillStyle = accent || '#00d4ff';
+        points.forEach(p => {
+          const x = centerX + p.I * scale;
+          const y = centerY - p.Q * scale;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        });
+    };
+
+    animationFrameId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [points, theme]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

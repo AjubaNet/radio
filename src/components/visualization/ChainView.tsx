@@ -53,73 +53,83 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, th
     }, [zoom, offset, updateView]);
 
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas || data.length === 0) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        let animationFrameId: number;
 
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
+        const draw = () => {
+            const canvas = canvasRef.current;
+            if (!canvas || data.length === 0) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
 
-        const W = rect.width;
-        const H = rect.height;
-
-        const style = getComputedStyle(document.body);
-        const bgPanel = style.getPropertyValue('--bg-panel').trim();
-        const borderSub = style.getPropertyValue('--border-sub').trim();
-
-        ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
-        ctx.fillRect(0, 0, W, H);
-
-        ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
-        ctx.lineWidth = 0.5;
-        for (let x = 0; x < W; x += W / 8) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-        }
-        ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
-
-        const visibleSamples = Math.floor(data.length / zoom);
-        const maxOffsetRange = data.length - visibleSamples;
-        const startSample = Math.floor(offset * maxOffsetRange);
-
-        let maxAbs = 0;
-        for (let i = 0; i < data.length; i++) maxAbs = Math.max(maxAbs, Math.abs(data[i]));
-        const scaleY = (maxAbs > 0 ? 1 / maxAbs : 1) * (H / 2.2);
-        const samplesPerPixel = visibleSamples / W;
-
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        let pathStarted = false;
-
-        for (let i = 0; i < W; i++) {
-            const sStart = startSample + Math.floor(i * samplesPerPixel);
-            const sEnd = startSample + Math.floor((i + 1) * samplesPerPixel);
-            if (sStart >= data.length) break;
-
-            if (sEnd <= sStart + 1 || samplesPerPixel < 1.5) {
-                const val = data[Math.min(sStart, data.length - 1)];
-                const y = H / 2 - val * scaleY;
-                if (!pathStarted) { ctx.moveTo(i, y); pathStarted = true; }
-                else ctx.lineTo(i, y);
-            } else {
-                let minV = Infinity, maxV = -Infinity;
-                const limit = Math.min(sEnd, data.length);
-                for (let j = sStart; j < limit; j++) {
-                    if (data[j] < minV) minV = data[j];
-                    if (data[j] > maxV) maxV = data[j];
-                }
-                const yHi = H / 2 - maxV * scaleY;
-                const yLo = H / 2 - minV * scaleY;
-                if (!pathStarted) { ctx.moveTo(i, (yHi + yLo) / 2); pathStarted = true; }
-                ctx.lineTo(i, yHi);
-                ctx.lineTo(i, yLo);
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
             }
-        }
-        ctx.stroke();
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
+
+            const W = rect.width;
+            const H = rect.height;
+
+            const style = getComputedStyle(document.body);
+            const bgPanel = style.getPropertyValue('--bg-panel').trim();
+            const borderSub = style.getPropertyValue('--border-sub').trim();
+
+            ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let x = 0; x < W; x += W / 8) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+            }
+            ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+
+            const visibleSamples = Math.floor(data.length / zoom);
+            const maxOffsetRange = data.length - visibleSamples;
+            const startSample = Math.floor(offset * maxOffsetRange);
+
+            let maxAbs = 0;
+            for (let i = 0; i < data.length; i++) maxAbs = Math.max(maxAbs, Math.abs(data[i]));
+            const scaleY = (maxAbs > 0 ? 1 / maxAbs : 1) * (H / 2.2);
+            const samplesPerPixel = visibleSamples / W;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            let pathStarted = false;
+
+            for (let i = 0; i < W; i++) {
+                const sStart = startSample + Math.floor(i * samplesPerPixel);
+                const sEnd = startSample + Math.floor((i + 1) * samplesPerPixel);
+                if (sStart >= data.length) break;
+
+                if (sEnd <= sStart + 1 || samplesPerPixel < 1.5) {
+                    const val = data[Math.min(sStart, data.length - 1)];
+                    const y = H / 2 - val * scaleY;
+                    if (!pathStarted) { ctx.moveTo(i, y); pathStarted = true; }
+                    else ctx.lineTo(i, y);
+                } else {
+                    let minV = Infinity, maxV = -Infinity;
+                    const limit = Math.min(sEnd, data.length);
+                    for (let j = sStart; j < limit; j++) {
+                        if (data[j] < minV) minV = data[j];
+                        if (data[j] > maxV) maxV = data[j];
+                    }
+                    const yHi = H / 2 - maxV * scaleY;
+                    const yLo = H / 2 - minV * scaleY;
+                    if (!pathStarted) { ctx.moveTo(i, (yHi + yLo) / 2); pathStarted = true; }
+                    ctx.lineTo(i, yHi);
+                    ctx.lineTo(i, yLo);
+                }
+            }
+            ctx.stroke();
+        };
+
+        animationFrameId = requestAnimationFrame(draw);
+        return () => cancelAnimationFrame(animationFrameId);
     }, [data, color, zoom, offset, theme]);
 
     return (
@@ -226,7 +236,7 @@ export const ChainView: React.FC<Props> = ({ signals, theme, highlightedPanel, e
                         }`}
                     >
                         {highlightedPanel === p.label && (
-                            <div className="absolute -top-4 left-2 z-10 text-[9px] font-bold text-amber-500 uppercase tracking-widest animate-pulse">
+                            <div className="absolute -top-4 left-2 z-10 text-[9px] font-bold text-amber-400 uppercase tracking-widest animate-pulse">
                                 ▼ Look here
                             </div>
                         )}
@@ -246,7 +256,7 @@ export const ChainView: React.FC<Props> = ({ signals, theme, highlightedPanel, e
                         type="range" min="0" max="1" step="0.001"
                         value={offset}
                         onChange={(e) => handleViewChange(zoom, parseFloat(e.target.value))}
-                        className="w-full h-1 bg-black/10 rounded-full appearance-none cursor-pointer mt-1"
+                        className="w-full h-1 accent-[#00d4ff] bg-white/10 rounded-full appearance-none cursor-pointer mt-1"
                         style={{ accentColor: 'var(--accent)' }}
                     />
                 )}

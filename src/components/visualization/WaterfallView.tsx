@@ -93,7 +93,7 @@ export const WaterfallView: React.FC<Props> = ({ spectrum, theme, title = 'Water
       {showInfo && (
         <div className="px-4 py-3 border-b text-xs leading-relaxed transition-colors duration-200" 
             style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}>
-          <strong>Waterfall Spectrogram:</strong> Frequency runs left-right; time flows downward; brightness/color represents signal power.
+          <strong>Waterfall Spectrogram:</strong> Frequency runs left-right; time flows downward; brightness represents signal power.
         </div>
       )}
       <div className="relative flex-1">
