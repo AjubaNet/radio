@@ -4,13 +4,14 @@ import { Info } from 'lucide-react';
 interface Props {
   spectrum: Float32Array;
   sampleRate: number;
+  theme?: string;
   title?: string;
 }
 
 const MAX_ROWS = 64;
 const DISPLAY_BINS = 512;
 
-export const WaterfallView: React.FC<Props> = ({ spectrum, title = 'Waterfall' }) => {
+export const WaterfallView: React.FC<Props> = ({ spectrum, theme, title = 'Waterfall' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rowsRef = useRef<Float32Array[]>([]);
   const [showInfo, setShowInfo] = useState(false);
@@ -42,10 +43,8 @@ export const WaterfallView: React.FC<Props> = ({ spectrum, title = 'Waterfall' }
     const imgData = ctx.createImageData(W, H);
     const data = imgData.data;
 
-    // Get theme accent for waterfall colors
     const style = getComputedStyle(document.body);
     const accent = style.getPropertyValue('--accent').trim() || '#00d4ff';
-    // Simple hex to RGB conversion for the waterfall effect
     const rMatch = accent.match(/[0-9a-f]{2}/gi);
     const accR = rMatch ? parseInt(rMatch[0], 16) : 0;
     const accG = rMatch ? parseInt(rMatch[1], 16) : 212;
@@ -72,7 +71,7 @@ export const WaterfallView: React.FC<Props> = ({ spectrum, title = 'Waterfall' }
       }
     }
     ctx.putImageData(imgData, 0, 0);
-  }, [spectrum]);
+  }, [spectrum, theme]);
 
   return (
     <div className="flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200"

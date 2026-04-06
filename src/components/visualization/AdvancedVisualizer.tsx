@@ -10,6 +10,7 @@ interface VisualizerLayer {
 interface Props {
     layers: VisualizerLayer[];
     title: string;
+    theme?: string;
     infoText?: string;
     externalZoom?: number;
     externalOffset?: number;
@@ -17,12 +18,12 @@ interface Props {
 }
 
 export const AdvancedVisualizer: React.FC<Props> = ({ 
-    layers, title, infoText, externalZoom, externalOffset, onViewChange 
+    layers, title, theme, infoText, externalZoom, externalOffset, onViewChange 
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [internalZoom, setInternalZoom] = useState(1);
     const [internalOffset, setInternalOffset] = useState(0);
-    const [isDragging, setIsPlaying] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const [lastX, setLastX] = useState(0);
     const [showInfo, setShowInfo] = useState(false);
 
@@ -56,7 +57,7 @@ export const AdvancedVisualizer: React.FC<Props> = ({
     }, [zoom, offset, updateView]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
-        setIsPlaying(true);
+        setIsDragging(true);
         setLastX(e.clientX);
     };
 
@@ -68,7 +69,7 @@ export const AdvancedVisualizer: React.FC<Props> = ({
         updateView(zoom, offset - dx * dragSpeed);
     };
 
-    const handleMouseUp = () => setIsPlaying(false);
+    const handleMouseUp = () => setIsDragging(false);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -85,15 +86,14 @@ export const AdvancedVisualizer: React.FC<Props> = ({
         const width = rect.width;
         const height = rect.height;
 
-        // Get theme colors from computed style
         const style = getComputedStyle(document.body);
-        const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
-        const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
+        const bgPanel = style.getPropertyValue('--bg-panel').trim();
+        const borderSub = style.getPropertyValue('--border-sub').trim();
 
-        ctx.fillStyle = bgPanel;
+        ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
         ctx.fillRect(0, 0, width, height);
 
-        ctx.strokeStyle = borderSub;
+        ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
         ctx.lineWidth = 1;
         for (let x = 0; x < width; x += width / 10) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
@@ -118,7 +118,6 @@ export const AdvancedVisualizer: React.FC<Props> = ({
             const signal = layer.data;
             if (!signal || signal.length === 0) return;
 
-            // Handle special color variables if passed
             let color = layer.color;
             if (color.startsWith('var(')) {
                 color = style.getPropertyValue(color.match(/--[\w-]+/)![0]).trim();
@@ -162,7 +161,7 @@ export const AdvancedVisualizer: React.FC<Props> = ({
             ctx.stroke();
         });
 
-    }, [layers, zoom, offset]);
+    }, [layers, zoom, offset, theme]);
 
     return (
         <div className="flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200 group"

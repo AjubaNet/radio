@@ -77,7 +77,6 @@ const App: React.FC = () => {
 
     const isDigital = ['ask', 'fsk', 'psk', 'qam', 'dsss', 'fhss'].includes(modulation);
 
-    // Dynamic colors based on theme
     const snrColor = snr >= 30 ? '#22c55e' : snr >= 15 ? '#f59e0b' : '#ef4444';
     const corrColor = metrics.correlation > 0.9 ? '#22c55e' : metrics.correlation > 0.6 ? '#f59e0b' : '#ef4444';
 
@@ -95,7 +94,6 @@ const App: React.FC = () => {
         <div className={`flex h-screen text-gray-100 overflow-hidden font-sans theme-app transition-colors duration-200 ${theme === 'light' ? '[color-scheme:light]' : '[color-scheme:dark]'}`}
             style={{ background: 'var(--bg-app)', color: 'var(--text-pri)' }}
         >
-            {/* Left sidebar */}
             <aside className="w-80 flex flex-col border-r shadow-lg z-20 transition-colors duration-200"
                 style={{ borderColor: 'var(--border-sub)', background: 'var(--bg-surface)' }}
             >
@@ -297,7 +295,6 @@ const App: React.FC = () => {
             </aside>
 
             <main className="flex-1 flex flex-col min-w-0" style={{ background: 'var(--bg-app)' }}>
-                {/* Metrics header */}
                 <div className="flex items-center justify-between px-8 border-b transition-colors duration-200" style={{minHeight: '4rem', background: 'var(--bg-surface)', borderColor: 'var(--border-sub)'}}>
                     <div className="flex gap-6 flex-wrap">
                         <div className="flex flex-col">
@@ -372,7 +369,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Melody selector panel */}
                 {showMelodyPanel && (
                     <div className="px-8 py-3 border-b flex items-center gap-4 transition-colors duration-200" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}>
                         <span className="text-xs font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: '#f59e0b' }}>🎵 Signal Source</span>
@@ -425,7 +421,6 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {/* View mode tabs */}
                 <div className="flex items-center gap-1 px-8 py-2 border-b transition-colors duration-200" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-sub)' }}>
                     {viewModes.map(vm => {
                         const disabled = vm.digitalOnly && !isDigital;
@@ -449,14 +444,14 @@ const App: React.FC = () => {
                     })}
                 </div>
 
-                {/* Main content */}
                 <div className="flex-1 p-6 overflow-y-auto scrollbar-hide" style={{ background: 'var(--bg-app)' }}>
                     {viewMode === 'time' && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className={isDigital && constellation.length > 0 ? "lg:col-span-1 h-[300px]" : "lg:col-span-2 h-[300px]"}>
                                 <AdvancedVisualizer
                                     title="Transmitted Modulated Waveform"
-                                    infoText="The carrier wave has been modified (modulated) to carry your message. In AM, the amplitude envelope follows the message. In FM, the frequency visibly varies with the message."
+                                    theme={theme}
+                                    infoText="The carrier wave has been modified (modulated) to carry your message."
                                     layers={[{ data: signals.modulated, color: 'var(--accent)', label: 'Modulated' }]}
                                     externalZoom={syncView ? sharedZoom : undefined}
                                     externalOffset={syncView ? sharedOffset : undefined}
@@ -466,14 +461,15 @@ const App: React.FC = () => {
 
                             {isDigital && constellation.length > 0 && (
                                 <div className="lg:col-span-1 h-[300px]">
-                                    <ConstellationDiagram points={constellation} title="Constellation Diagram (I/Q)" />
+                                    <ConstellationDiagram points={constellation} title="Constellation Diagram (I/Q)" theme={theme} />
                                 </div>
                             )}
 
                             <div className="relative h-[250px]">
                                 <AdvancedVisualizer
                                     title="Recovery Comparison (Original vs Recovered)"
-                                    infoText="Blue = original message signal. Orange = demodulated signal through the noisy channel. Ideally these overlap perfectly."
+                                    theme={theme}
+                                    infoText="Blue = original message signal. Orange = demodulated signal through the noisy channel."
                                     layers={[
                                         { data: signals.message, color: '#3b82f6', label: 'Message' },
                                         { data: signals.demodulated, color: '#f59e0b', label: 'Demodulated' }
@@ -490,7 +486,8 @@ const App: React.FC = () => {
                             <div className="h-[250px]">
                                 <AdvancedVisualizer
                                     title="Ideal Recovery (Perfect Channel)"
-                                    infoText="Same demodulation algorithm, but zero noise applied. This is the theoretical best-case output."
+                                    theme={theme}
+                                    infoText="Same demodulation algorithm, but zero noise applied."
                                     layers={[
                                         { data: signals.message, color: '#3b82f6', label: 'Message' },
                                         { data: signals.demodIdeal, color: '#22c55e', label: 'Ideal' }
@@ -510,9 +507,9 @@ const App: React.FC = () => {
                                 sampleRate={sampleRate}
                                 carrierFreq={carrierFreq}
                                 msgFreq={msgFreq}
+                                theme={theme}
                                 modulation={modulation}
                                 modIndex={modIndex}
-                                
                                 title="Frequency Spectrum (FFT)"
                             />
                         </div>
@@ -522,6 +519,7 @@ const App: React.FC = () => {
                         <div className="h-full min-h-[500px]">
                             <ChainView
                                 signals={signals}
+                                theme={theme}
                                 highlightedPanel={demoPanelHighlight}
                                 externalZoom={syncView ? sharedZoom : undefined}
                                 externalOffset={syncView ? sharedOffset : undefined}
@@ -532,13 +530,13 @@ const App: React.FC = () => {
 
                     {viewMode === 'waterfall' && (
                         <div className="h-[500px]">
-                            <WaterfallView spectrum={signals.spectrum} sampleRate={sampleRate} title="Waterfall Spectrogram" />
+                            <WaterfallView spectrum={signals.spectrum} sampleRate={sampleRate} theme={theme} title="Waterfall Spectrogram" />
                         </div>
                     )}
 
                     {viewMode === 'eye' && isDigital && (
                         <div className="h-[500px]">
-                            <EyeDiagram signal={signals.modulated} samplesPerSymbol={samplesPerSymbol} title="Eye Diagram" />
+                            <EyeDiagram signal={signals.modulated} samplesPerSymbol={samplesPerSymbol} theme={theme} title="Eye Diagram" />
                         </div>
                     )}
                 </div>

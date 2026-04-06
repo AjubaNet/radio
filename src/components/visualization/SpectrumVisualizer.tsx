@@ -7,6 +7,7 @@ interface Props {
   sampleRate: number;
   carrierFreq: number;
   msgFreq: number;
+  theme?: string;
   modulation?: ModulationType;
   modIndex?: number;
   title?: string;
@@ -30,7 +31,7 @@ function getSpectrumInfo(
 }
 
 export const SpectrumVisualizer: React.FC<Props> = ({
-  spectrum, sampleRate, carrierFreq, msgFreq,
+  spectrum, sampleRate, carrierFreq, msgFreq, theme,
   modulation, modIndex = 1, title = 'Spectrum'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,12 +56,12 @@ export const SpectrumVisualizer: React.FC<Props> = ({
     const plotH = H - pad.top - pad.bottom;
 
     const style = getComputedStyle(document.body);
-    const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
-    const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
-    const accent = style.getPropertyValue('--accent').trim() || '#00d4ff';
-    const textSec = style.getPropertyValue('--text-sec').trim() || '#94a3b8';
+    const bgPanel = style.getPropertyValue('--bg-panel').trim();
+    const borderSub = style.getPropertyValue('--border-sub').trim();
+    const accent = style.getPropertyValue('--accent').trim();
+    const textSec = style.getPropertyValue('--text-sec').trim();
 
-    ctx.fillStyle = bgPanel;
+    ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
     ctx.fillRect(0, 0, W, H);
 
     const nyquist = sampleRate / 2;
@@ -68,7 +69,7 @@ export const SpectrumVisualizer: React.FC<Props> = ({
     const maxBin = Math.floor(maxFreq / nyquist * spectrum.length);
 
     // Grid
-    ctx.strokeStyle = borderSub;
+    ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
     ctx.lineWidth = 1;
     for (let db = -80; db <= 0; db += 20) {
       const y = pad.top + plotH * (1 - (db + 80) / 80);
@@ -76,7 +77,7 @@ export const SpectrumVisualizer: React.FC<Props> = ({
       ctx.moveTo(pad.left, y);
       ctx.lineTo(pad.left + plotW, y);
       ctx.stroke();
-      ctx.fillStyle = textSec;
+      ctx.fillStyle = textSec || '#94a3b8';
       ctx.font = '9px monospace';
       ctx.fillText(`${db}`, pad.left - 28, y + 3);
     }
@@ -93,10 +94,10 @@ export const SpectrumVisualizer: React.FC<Props> = ({
     }
     ctx.lineTo(pad.left + plotW, pad.top + plotH);
     ctx.closePath();
-    ctx.fillStyle = accent + '33'; 
+    ctx.fillStyle = (accent || '#00d4ff') + '33'; 
     ctx.fill();
     
-    ctx.strokeStyle = accent;
+    ctx.strokeStyle = accent || '#00d4ff';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let bin = 0; bin < maxBin && bin < spectrum.length; bin++) {
@@ -125,13 +126,13 @@ export const SpectrumVisualizer: React.FC<Props> = ({
     };
     drawVLine(carrierFreq, '#f59e0b', 'fc');
 
-    ctx.fillStyle = textSec;
+    ctx.fillStyle = textSec || '#94a3b8';
     ctx.font = '9px monospace';
     ctx.fillText('0', pad.left, pad.top + plotH + 15);
     ctx.fillText(`${(carrierFreq/1000).toFixed(1)}k`, pad.left + (carrierFreq/maxFreq)*plotW - 10, pad.top + plotH + 15);
     ctx.fillText(`${(maxFreq/1000).toFixed(1)}k`, pad.left + plotW - 15, pad.top + plotH + 15);
 
-  }, [spectrum, sampleRate, carrierFreq, msgFreq]);
+  }, [spectrum, sampleRate, carrierFreq, msgFreq, theme]);
 
   return (
     <div className="flex-1 flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200"

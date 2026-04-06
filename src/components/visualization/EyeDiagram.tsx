@@ -4,10 +4,11 @@ import { Info } from 'lucide-react';
 interface Props {
   signal: Float32Array;
   samplesPerSymbol: number;
+  theme?: string;
   title?: string;
 }
 
-export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 'Eye Diagram' }) => {
+export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, theme, title = 'Eye Diagram' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showInfo, setShowInfo] = useState(false);
 
@@ -27,11 +28,11 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
     const H = rect.height;
 
     const style = getComputedStyle(document.body);
-    const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
-    const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
-    const accent = style.getPropertyValue('--accent').trim() || '#00d4ff';
+    const bgPanel = style.getPropertyValue('--bg-panel').trim();
+    const borderSub = style.getPropertyValue('--border-sub').trim();
+    const accent = style.getPropertyValue('--accent').trim();
 
-    ctx.fillStyle = bgPanel;
+    ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
     ctx.fillRect(0, 0, W, H);
 
     if (signal.length < samplesPerSymbol * 2) return;
@@ -43,7 +44,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
     }
     const range = maxV - minV || 1;
 
-    ctx.strokeStyle = borderSub;
+    ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
@@ -51,7 +52,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
     ctx.stroke();
 
     const numTraces = Math.floor(signal.length / samplesPerSymbol) - 1;
-    ctx.strokeStyle = accent + '33'; // low opacity
+    ctx.strokeStyle = (accent || '#00d4ff') + '33';
     ctx.lineWidth = 1;
     for (let t = 0; t < numTraces; t++) {
       const start = t * samplesPerSymbol;
@@ -75,7 +76,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
     ctx.stroke();
     ctx.setLineDash([]);
 
-  }, [signal, samplesPerSymbol]);
+  }, [signal, samplesPerSymbol, theme]);
 
   return (
     <div className="flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200"
@@ -95,7 +96,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
       {showInfo && (
         <div className="px-4 py-3 border-b text-xs leading-relaxed transition-colors duration-200" 
             style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}>
-          <strong>Eye Diagram:</strong> All symbol periods overlaid on top of each other. A wide-open &ldquo;eye&rdquo; in the center means symbols are distinguishable.
+          <strong>Eye Diagram:</strong> All symbol periods overlaid. Wide-open eye = reliable decoding.
         </div>
       )}
       <div className="relative flex-1">

@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 interface Props {
   points: {I: number, Q: number}[];
   title: string;
+  theme?: string;
 }
 
 interface Tooltip {
@@ -13,7 +14,7 @@ interface Tooltip {
   Q: number;
 }
 
-export const ConstellationDiagram: React.FC<Props> = ({ points, title }) => {
+export const ConstellationDiagram: React.FC<Props> = ({ points, title, theme }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
 
@@ -36,14 +37,14 @@ export const ConstellationDiagram: React.FC<Props> = ({ points, title }) => {
     const scale = Math.min(width, height) * 0.4;
 
     const style = getComputedStyle(document.body);
-    const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
-    const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
-    const accent = style.getPropertyValue('--accent').trim() || '#00d4ff';
+    const bgPanel = style.getPropertyValue('--bg-panel').trim();
+    const borderSub = style.getPropertyValue('--border-sub').trim();
+    const accent = style.getPropertyValue('--accent').trim();
 
-    ctx.fillStyle = bgPanel;
+    ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = borderSub;
+    ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.2)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
@@ -54,7 +55,7 @@ export const ConstellationDiagram: React.FC<Props> = ({ points, title }) => {
     ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
     ctx.stroke();
 
-    ctx.fillStyle = accent;
+    ctx.fillStyle = accent || '#00d4ff';
     points.forEach(p => {
       const x = centerX + p.I * scale;
       const y = centerY - p.Q * scale;
@@ -62,7 +63,7 @@ export const ConstellationDiagram: React.FC<Props> = ({ points, title }) => {
       ctx.arc(x, y, 3, 0, 2 * Math.PI);
       ctx.fill();
     });
-  }, [points]);
+  }, [points, theme]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

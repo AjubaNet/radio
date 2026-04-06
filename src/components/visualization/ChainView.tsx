@@ -4,6 +4,7 @@ import { ZoomIn, ZoomOut, RotateCcw, Link, Link2Off, Info } from 'lucide-react';
 
 interface Props {
     signals: RadioSignals;
+    theme?: string;
     highlightedPanel?: string | null;
     externalZoom?: number;
     externalOffset?: number;
@@ -24,10 +25,11 @@ interface PanelProps {
     color: string;
     zoom: number;
     offset: number;
+    theme?: string;
     onViewChange?: (z: number, o: number) => void;
 }
 
-const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, onViewChange }) => {
+const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, theme, onViewChange }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [showInfo, setShowInfo] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -66,13 +68,13 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
         const H = rect.height;
 
         const style = getComputedStyle(document.body);
-        const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
-        const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
+        const bgPanel = style.getPropertyValue('--bg-panel').trim();
+        const borderSub = style.getPropertyValue('--border-sub').trim();
 
-        ctx.fillStyle = bgPanel;
+        ctx.fillStyle = bgPanel || (theme === 'light' ? '#f8fafc' : '#0a0a1a');
         ctx.fillRect(0, 0, W, H);
 
-        ctx.strokeStyle = borderSub;
+        ctx.strokeStyle = borderSub || 'rgba(128, 128, 128, 0.1)';
         ctx.lineWidth = 0.5;
         for (let x = 0; x < W; x += W / 8) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
@@ -118,7 +120,7 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
             }
         }
         ctx.stroke();
-    }, [data, color, zoom, offset]);
+    }, [data, color, zoom, offset, theme]);
 
     return (
         <div className="flex-1 flex flex-col min-h-[85px] border rounded-lg overflow-hidden transition-colors duration-200"
@@ -165,7 +167,7 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
     );
 };
 
-export const ChainView: React.FC<Props> = ({ signals, highlightedPanel, externalZoom, externalOffset, onViewChange }) => {
+export const ChainView: React.FC<Props> = ({ signals, theme, highlightedPanel, externalZoom, externalOffset, onViewChange }) => {
     const [internalZoom, setInternalZoom] = useState(1);
     const [internalOffset, setInternalOffset] = useState(0);
     const [syncPanels, setSyncPanels] = useState(true);
@@ -181,7 +183,7 @@ export const ChainView: React.FC<Props> = ({ signals, highlightedPanel, external
     const panels = [
         { data: signals.carrier,     label: 'Carrier',        color: '#94a3b8' },
         { data: signals.message,     label: 'Message',        color: '#3b82f6' },
-        { data: signals.modulated,   label: 'Modulated',      color: 'var(--accent)' },
+        { data: signals.modulated,   label: 'Modulated',      color: theme === 'light' ? '#0284c7' : '#00d4ff' },
         { data: signals.demodIdeal,  label: 'Ideal Recovery', color: '#22c55e' },
         { data: signals.demodulated, label: 'Noisy Recovery', color: '#f59e0b' },
     ];
@@ -234,6 +236,7 @@ export const ChainView: React.FC<Props> = ({ signals, highlightedPanel, external
                             color={highlightedPanel === p.label ? '#f59e0b' : p.color}
                             zoom={zoom}
                             offset={offset}
+                            theme={theme}
                             onViewChange={syncPanels ? handleViewChange : undefined}
                         />
                     </div>
@@ -243,7 +246,7 @@ export const ChainView: React.FC<Props> = ({ signals, highlightedPanel, external
                         type="range" min="0" max="1" step="0.001"
                         value={offset}
                         onChange={(e) => handleViewChange(zoom, parseFloat(e.target.value))}
-                        className="w-full h-1 accent-[#00d4ff] bg-white/10 rounded-full appearance-none cursor-pointer mt-1"
+                        className="w-full h-1 bg-black/10 rounded-full appearance-none cursor-pointer mt-1"
                         style={{ accentColor: 'var(--accent)' }}
                     />
                 )}
