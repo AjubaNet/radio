@@ -5,18 +5,17 @@ import { ZoomIn, ZoomOut, RotateCcw, Link, Link2Off, Info } from 'lucide-react';
 interface Props {
     signals: RadioSignals;
     highlightedPanel?: string | null;
-    // Optional sync with Time view
     externalZoom?: number;
     externalOffset?: number;
     onViewChange?: (zoom: number, offset: number) => void;
 }
 
 const PANEL_INFO: Record<string, string> = {
-    'Carrier':         'The pure high-frequency sine wave — the "vehicle" for your data. Compare this to the modulated output to see how the carrier is changed by modulation.',
-    'Message':         'Your information signal — the data being transmitted. At digital bit rates, this is a ±1 binary pulse train. For analog mods, it\'s the continuous waveform (sine, square, etc.).',
-    'Modulated':       'The transmitted signal. The message has been impressed onto the carrier. In AM you\'ll see the envelope follow the message; in FM the frequency visibly varies; in PSK the phase flips at bit boundaries.',
-    'Ideal Recovery':  'Demodulated with zero noise — the theoretical best case. This should match the Message panel closely. Any mismatch reveals demodulator distortion or parameter issues.',
-    'Noisy Recovery':  'Demodulated through the actual noisy channel. Compares to Ideal Recovery to show noise impact. Lower SNR = more divergence from message. The Correlation % in Time view quantifies this.',
+    'Carrier':         'The pure high-frequency sine wave — the "vehicle" for your data.',
+    'Message':         'Your information signal — the data being transmitted.',
+    'Modulated':       'The transmitted signal. The message has been impressed onto the carrier.',
+    'Ideal Recovery':  'Demodulated with zero noise — the theoretical best case.',
+    'Noisy Recovery':  'Demodulated through the actual noisy channel.',
 };
 
 interface PanelProps {
@@ -41,11 +40,13 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
     }, [onViewChange]);
 
     const handleWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault();
+        if (!e.currentTarget.contains(e.target as Node)) return;
         if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
             updateView(zoom * (e.deltaY > 0 ? 0.85 : 1.15), offset);
-        } else {
-            updateView(zoom, offset + e.deltaY * 0.001 / zoom);
+        } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+            e.preventDefault();
+            updateView(zoom, offset + e.deltaX * 0.001 / zoom);
         }
     }, [zoom, offset, updateView]);
 
@@ -64,18 +65,20 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
         const W = rect.width;
         const H = rect.height;
 
-        ctx.fillStyle = '#050510';
+        const style = getComputedStyle(document.body);
+        const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
+        const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
+
+        ctx.fillStyle = bgPanel;
         ctx.fillRect(0, 0, W, H);
 
-        // Grid
-        ctx.strokeStyle = 'rgba(0,212,255,0.08)';
+        ctx.strokeStyle = borderSub;
         ctx.lineWidth = 0.5;
         for (let x = 0; x < W; x += W / 8) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
         }
         ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
 
-        // Signal
         const visibleSamples = Math.floor(data.length / zoom);
         const maxOffsetRange = data.length - visibleSamples;
         const startSample = Math.floor(offset * maxOffsetRange);
@@ -109,8 +112,7 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
                 }
                 const yHi = H / 2 - maxV * scaleY;
                 const yLo = H / 2 - minV * scaleY;
-                const yMid = (yHi + yLo) / 2;
-                if (!pathStarted) { ctx.moveTo(i, yMid); pathStarted = true; }
+                if (!pathStarted) { ctx.moveTo(i, (yHi + yLo) / 2); pathStarted = true; }
                 ctx.lineTo(i, yHi);
                 ctx.lineTo(i, yLo);
             }
@@ -119,34 +121,31 @@ const ChainPanel: React.FC<PanelProps> = ({ data, label, color, zoom, offset, on
     }, [data, color, zoom, offset]);
 
     return (
-        <div className="flex-1 flex flex-col min-h-[85px] bg-[#1a1a2e]/60 border border-white/10 rounded-lg overflow-hidden">
-            {/* Panel header */}
-            <div className="flex items-center justify-between px-2 py-1 bg-black/30">
+        <div className="flex-1 flex flex-col min-h-[85px] border rounded-lg overflow-hidden transition-colors duration-200"
+            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-sub)' }}
+        >
+            <div className="flex items-center justify-between px-2 py-1 transition-colors duration-200" style={{ background: 'var(--bg-card)' }}>
                 <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color }}>
                     {label}
                 </span>
                 <div className="flex items-center gap-1">
                     {zoom > 1 && (
-                        <span className="text-[8px] font-mono text-white/30">{zoom.toFixed(1)}x</span>
+                        <span className="text-[8px] font-mono opacity-40" style={{ color: 'var(--text-pri)' }}>{zoom.toFixed(1)}x</span>
                     )}
-                    <button
-                        onClick={() => setShowInfo(v => !v)}
-                        className="p-0.5 rounded text-white/30 hover:text-white/70 transition-colors"
-                    >
+                    <button onClick={() => setShowInfo(v => !v)} className="p-0.5 rounded transition-colors" style={{ color: 'var(--text-muted)' }}>
                         <Info size={10} />
                     </button>
                 </div>
             </div>
 
-            {/* Info overlay */}
             {showInfo && (
-                <div className="absolute z-10 mt-6 mx-1 bg-[#0a0a20]/95 border border-[#00d4ff]/30 rounded-lg p-2 text-[10px] text-gray-300 leading-relaxed shadow-xl">
+                <div className="absolute z-10 mt-6 mx-1 border rounded-lg p-2 text-[10px] leading-relaxed shadow-xl"
+                    style={{ background: 'var(--bg-surface)', borderColor: 'var(--accent)', color: 'var(--text-sec)' }}>
                     {PANEL_INFO[label] || ''}
-                    <button onClick={() => setShowInfo(false)} className="block mt-1 text-[#00d4ff]/60 hover:text-[#00d4ff]">✕ close</button>
+                    <button onClick={() => setShowInfo(false)} className="block mt-1 font-bold" style={{ color: 'var(--accent)' }}>✕ close</button>
                 </div>
             )}
 
-            {/* Canvas */}
             <div
                 className="relative flex-1 cursor-grab active:cursor-grabbing"
                 onWheel={handleWheel}
@@ -175,73 +174,64 @@ export const ChainView: React.FC<Props> = ({ signals, highlightedPanel, external
     const offset = externalOffset !== undefined ? externalOffset : internalOffset;
 
     const handleViewChange = useCallback((newZoom: number, newOffset: number) => {
-        if (onViewChange) {
-            onViewChange(newZoom, newOffset);
-        } else {
-            setInternalZoom(newZoom);
-            setInternalOffset(newOffset);
-        }
+        if (onViewChange) onViewChange(newZoom, newOffset);
+        else { setInternalZoom(newZoom); setInternalOffset(newOffset); }
     }, [onViewChange]);
 
     const panels = [
-        { data: signals.carrier,     label: 'Carrier',        color: '#888888' },
-        { data: signals.message,     label: 'Message',        color: '#6699ff' },
-        { data: signals.modulated,   label: 'Modulated',      color: '#00d4ff' },
-        { data: signals.demodIdeal,  label: 'Ideal Recovery', color: '#44ff88' },
-        { data: signals.demodulated, label: 'Noisy Recovery', color: '#ff8844' },
+        { data: signals.carrier,     label: 'Carrier',        color: '#94a3b8' },
+        { data: signals.message,     label: 'Message',        color: '#3b82f6' },
+        { data: signals.modulated,   label: 'Modulated',      color: 'var(--accent)' },
+        { data: signals.demodIdeal,  label: 'Ideal Recovery', color: '#22c55e' },
+        { data: signals.demodulated, label: 'Noisy Recovery', color: '#f59e0b' },
     ];
 
     return (
-        <div className="flex flex-col h-full bg-[#1a1a2e]/20 rounded-xl border border-[#00d4ff]/20 overflow-hidden">
-            {/* Controls bar */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-[#00d4ff]/10 bg-[#00d4ff]/5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#00d4ff]/60">
+        <div className="flex flex-col h-full border rounded-xl overflow-hidden transition-colors duration-200"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}>
+            <div className="flex items-center justify-between px-4 py-2 border-b transition-colors duration-200"
+                style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)' }}>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-sec)' }}>
                     Signal Chain — {zoom.toFixed(1)}x
                 </span>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setSyncPanels(v => !v)}
-                        className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold border transition-all ${
-                            syncPanels
-                            ? 'bg-[#00d4ff]/20 border-[#00d4ff]/60 text-[#00d4ff]'
-                            : 'bg-white/5 border-white/10 text-gray-500'
-                        }`}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold border transition-all"
+                        style={{
+                            borderColor: syncPanels ? 'var(--accent)' : 'var(--border-sub)',
+                            backgroundColor: syncPanels ? 'var(--accent-soft)' : 'var(--bg-input)',
+                            color: syncPanels ? 'var(--accent)' : 'var(--text-muted)'
+                        }}
                     >
                         {syncPanels ? <Link size={9} /> : <Link2Off size={9} />}
                         Sync
                     </button>
-                    <button onClick={() => handleViewChange(zoom * 1.5, offset)} className="p-1 rounded text-[#00d4ff]/60 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 transition-colors">
-                        <ZoomIn size={12} />
-                    </button>
-                    <button onClick={() => handleViewChange(zoom / 1.5, offset)} className="p-1 rounded text-[#00d4ff]/60 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 transition-colors">
-                        <ZoomOut size={12} />
-                    </button>
-                    <button onClick={() => handleViewChange(1, 0)} className="p-1 rounded text-[#00d4ff]/60 hover:text-[#00d4ff] hover:bg-[#00d4ff]/10 transition-colors">
-                        <RotateCcw size={12} />
-                    </button>
+                    <button onClick={() => handleViewChange(zoom * 1.5, offset)} className="p-1 rounded hover:bg-black/5" style={{ color: 'var(--accent)' }}><ZoomIn size={12} /></button>
+                    <button onClick={() => handleViewChange(zoom / 1.5, offset)} className="p-1 rounded hover:bg-black/5" style={{ color: 'var(--accent)' }}><ZoomOut size={12} /></button>
+                    <button onClick={() => handleViewChange(1, 0)} className="p-1 rounded hover:bg-black/5" style={{ color: 'var(--accent)' }}><RotateCcw size={12} /></button>
                 </div>
             </div>
 
-            {/* Panels */}
-            <div className="flex-1 flex flex-col gap-2 p-3 overflow-y-auto">
+            <div className="flex-1 flex flex-col gap-2 p-3 overflow-y-auto scrollbar-hide">
                 {panels.map((p, i) => (
                     <div
                         key={i}
                         className={`relative transition-all duration-500 ${
                             highlightedPanel === p.label
-                                ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-[#0a0a20] rounded-lg shadow-[0_0_18px_rgba(251,191,36,0.4)]'
+                                ? 'rounded-lg ring-2 ring-amber-400 ring-offset-1'
                                 : ''
                         }`}
                     >
                         {highlightedPanel === p.label && (
-                            <div className="absolute -top-4 left-2 z-10 text-[9px] font-bold text-amber-400 uppercase tracking-widest animate-pulse">
+                            <div className="absolute -top-4 left-2 z-10 text-[9px] font-bold text-amber-500 uppercase tracking-widest animate-pulse">
                                 ▼ Look here
                             </div>
                         )}
                         <ChainPanel
                             data={p.data}
                             label={p.label}
-                            color={highlightedPanel === p.label ? '#fbbf24' : p.color}
+                            color={highlightedPanel === p.label ? '#f59e0b' : p.color}
                             zoom={zoom}
                             offset={offset}
                             onViewChange={syncPanels ? handleViewChange : undefined}
@@ -254,10 +244,10 @@ export const ChainView: React.FC<Props> = ({ signals, highlightedPanel, external
                         value={offset}
                         onChange={(e) => handleViewChange(zoom, parseFloat(e.target.value))}
                         className="w-full h-1 accent-[#00d4ff] bg-white/10 rounded-full appearance-none cursor-pointer mt-1"
+                        style={{ accentColor: 'var(--accent)' }}
                     />
                 )}
             </div>
         </div>
     );
 };
-

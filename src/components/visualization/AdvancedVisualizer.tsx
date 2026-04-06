@@ -41,14 +41,15 @@ export const AdvancedVisualizer: React.FC<Props> = ({
     }, [onViewChange]);
 
     const handleWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault();
+        if (!e.currentTarget.contains(e.target as Node)) return;
+        
         if (e.ctrlKey || e.metaKey) {
-            // Zoom
+            e.preventDefault();
             const factor = e.deltaY > 0 ? 0.9 : 1.1;
             updateView(zoom * factor, offset);
-        } else {
-            // Scroll (Pan)
-            const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+        } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+            e.preventDefault();
+            const delta = e.deltaX;
             const scrollSpeed = 0.001 / zoom;
             updateView(zoom, offset + delta * scrollSpeed);
         }
@@ -63,8 +64,7 @@ export const AdvancedVisualizer: React.FC<Props> = ({
         if (!isDragging) return;
         const dx = e.clientX - lastX;
         setLastX(e.clientX);
-        // Map pixel drag to offset change
-        const dragSpeed = 1 / (zoom * 500); // Sensitivity
+        const dragSpeed = 1 / (zoom * 500); 
         updateView(zoom, offset - dx * dragSpeed);
     };
 
@@ -85,10 +85,15 @@ export const AdvancedVisualizer: React.FC<Props> = ({
         const width = rect.width;
         const height = rect.height;
 
-        ctx.fillStyle = '#050510';
+        // Get theme colors from computed style
+        const style = getComputedStyle(document.body);
+        const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
+        const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
+
+        ctx.fillStyle = bgPanel;
         ctx.fillRect(0, 0, width, height);
 
-        ctx.strokeStyle = 'rgba(0, 212, 255, 0.1)';
+        ctx.strokeStyle = borderSub;
         ctx.lineWidth = 1;
         for (let x = 0; x < width; x += width / 10) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
@@ -99,8 +104,6 @@ export const AdvancedVisualizer: React.FC<Props> = ({
 
         const centerY = height / 2;
 
-        // Compute global max amplitude across all layers to prevent clipping
-        // (e.g. AM modulated signal can reach ±1.5 with modIndex=0.5)
         let globalMax = 1e-10;
         for (const layer of layers) {
             if (!layer.data || layer.data.length === 0) continue;
@@ -109,13 +112,19 @@ export const AdvancedVisualizer: React.FC<Props> = ({
                 if (a > globalMax) globalMax = a;
             }
         }
-        const scaleY = (height / 2.4) / globalMax; // 20% headroom at top/bottom
+        const scaleY = (height / 2.4) / globalMax;
 
         layers.forEach((layer) => {
             const signal = layer.data;
             if (!signal || signal.length === 0) return;
 
-            ctx.strokeStyle = layer.color;
+            // Handle special color variables if passed
+            let color = layer.color;
+            if (color.startsWith('var(')) {
+                color = style.getPropertyValue(color.match(/--[\w-]+/)![0]).trim();
+            }
+
+            ctx.strokeStyle = color;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
 
@@ -132,13 +141,11 @@ export const AdvancedVisualizer: React.FC<Props> = ({
                 if (sStart >= signal.length) break;
 
                 if (sEnd <= sStart + 1 || samplesPerPixel < 1.5) {
-                    // One sample per pixel — regular line
                     const val = signal[Math.min(sStart, signal.length - 1)];
                     const y = centerY - val * scaleY;
                     if (!pathStarted) { ctx.moveTo(i, y); pathStarted = true; }
                     else ctx.lineTo(i, y);
                 } else {
-                    // Multiple samples per pixel — draw min/max envelope to avoid aliasing
                     let minV = Infinity, maxV = -Infinity;
                     const limit = Math.min(sEnd, signal.length);
                     for (let j = sStart; j < limit; j++) {
@@ -147,8 +154,7 @@ export const AdvancedVisualizer: React.FC<Props> = ({
                     }
                     const yHi = centerY - maxV * scaleY;
                     const yLo = centerY - minV * scaleY;
-                    const yMid = (yHi + yLo) / 2;
-                    if (!pathStarted) { ctx.moveTo(i, yMid); pathStarted = true; }
+                    if (!pathStarted) { ctx.moveTo(i, (yHi + yLo) / 2); pathStarted = true; }
                     ctx.lineTo(i, yHi);
                     ctx.lineTo(i, yLo);
                 }
@@ -159,29 +165,38 @@ export const AdvancedVisualizer: React.FC<Props> = ({
     }, [layers, zoom, offset]);
 
     return (
-        <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden shadow-lg shadow-primary/5 group">
-            <div className="flex items-center justify-between px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
+        <div className="flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200 group"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}
+        >
+            <div className="flex items-center justify-between px-4 py-2 border-b transition-colors duration-200"
+                style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)' }}
+            >
                 <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
-                    <span className="text-[10px] text-gray-500 font-mono">Zoom: {zoom.toFixed(1)}x</span>
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>{title}</span>
+                    <span className="text-[10px] font-mono opacity-50" style={{ color: 'var(--text-sec)' }}>{zoom.toFixed(1)}x</span>
                 </div>
-                <div className="flex items-center gap-2 text-[#00d4ff]">
+                <div className="flex items-center gap-2">
                     {infoText && (
                         <button
                             onClick={() => setShowInfo(v => !v)}
-                            className={`p-1 rounded transition-colors ${showInfo ? 'bg-[#00d4ff]/30 text-white' : 'hover:bg-[#00d4ff]/20'}`}
+                            className="p-1 rounded transition-colors"
+                            style={{ 
+                                background: showInfo ? 'var(--accent-soft)' : 'transparent',
+                                color: showInfo ? 'var(--accent)' : 'var(--text-muted)'
+                            }}
                             title="What does this graph show?"
                         >
                             <Info size={13} />
                         </button>
                     )}
-                    <button onClick={() => updateView(zoom * 1.5, offset)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><ZoomIn size={14} /></button>
-                    <button onClick={() => updateView(zoom / 1.5, offset)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><ZoomOut size={14} /></button>
-                    <button onClick={() => updateView(1, 0)} className="p-1 hover:bg-[#00d4ff]/20 rounded"><RotateCcw size={14} /></button>
+                    <button onClick={() => updateView(zoom * 1.5, offset)} className="p-1 rounded hover:bg-black/5" style={{ color: 'var(--accent)' }}><ZoomIn size={14} /></button>
+                    <button onClick={() => updateView(zoom / 1.5, offset)} className="p-1 rounded hover:bg-black/5" style={{ color: 'var(--accent)' }}><ZoomOut size={14} /></button>
+                    <button onClick={() => updateView(1, 0)} className="p-1 rounded hover:bg-black/5" style={{ color: 'var(--accent)' }}><RotateCcw size={14} /></button>
                 </div>
             </div>
             {showInfo && infoText && (
-                <div className="px-4 py-3 bg-indigo-950/60 border-b border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
+                <div className="px-4 py-3 border-b text-xs leading-relaxed" 
+                    style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}>
                     {infoText}
                 </div>
             )}
@@ -194,7 +209,7 @@ export const AdvancedVisualizer: React.FC<Props> = ({
                 onMouseLeave={handleMouseUp}
             >
                 <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-                <div className="absolute bottom-4 left-4 text-[9px] text-primary/40 font-mono hidden group-hover:block">
+                <div className="absolute bottom-4 left-4 text-[9px] font-mono opacity-30 pointer-events-none hidden group-hover:block" style={{ color: 'var(--text-muted)' }}>
                     DRAG TO PAN • WHEEL TO SCROLL • CTRL+WHEEL TO ZOOM
                 </div>
                 {zoom > 1 && (
@@ -202,6 +217,7 @@ export const AdvancedVisualizer: React.FC<Props> = ({
                         type="range" min="0" max="1" step="0.001" 
                         value={offset} onChange={(e) => updateView(zoom, parseFloat(e.target.value))}
                         className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/2 h-1 accent-[#00d4ff] appearance-none bg-white/10 rounded-full cursor-pointer"
+                        style={{ accentColor: 'var(--accent)' }}
                     />
                 )}
             </div>

@@ -35,10 +35,15 @@ export const ConstellationDiagram: React.FC<Props> = ({ points, title }) => {
     const centerY = height / 2;
     const scale = Math.min(width, height) * 0.4;
 
-    ctx.fillStyle = '#050510';
+    const style = getComputedStyle(document.body);
+    const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
+    const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
+    const accent = style.getPropertyValue('--accent').trim() || '#00d4ff';
+
+    ctx.fillStyle = bgPanel;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = 'rgba(0, 212, 255, 0.3)';
+    ctx.strokeStyle = borderSub;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
@@ -49,7 +54,7 @@ export const ConstellationDiagram: React.FC<Props> = ({ points, title }) => {
     ctx.arc(centerX, centerY, scale, 0, 2 * Math.PI);
     ctx.stroke();
 
-    ctx.fillStyle = '#00d4ff';
+    ctx.fillStyle = accent;
     points.forEach(p => {
       const x = centerX + p.I * scale;
       const y = centerY - p.Q * scale;
@@ -109,18 +114,27 @@ export const ConstellationDiagram: React.FC<Props> = ({ points, title }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden">
-      <div className="px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
-        <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
+    <div className="flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200"
+        style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}>
+      <div className="px-4 py-2 border-b transition-colors duration-200"
+        style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)' }}>
+        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>{title}</span>
       </div>
       <div className="relative flex-1" onClick={() => setTooltip(null)}>
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair" onClick={handleClick} />
         {tooltip && (
           <div
-            className="absolute bg-[#1a1a2e] border border-[#00d4ff]/40 rounded-lg px-3 py-2 text-xs font-mono text-white pointer-events-none shadow-lg"
-            style={{ left: tooltip.x + 10, top: tooltip.y - 30, transform: 'translateY(-100%)' }}
+            className="absolute border rounded-lg px-3 py-2 text-xs font-mono pointer-events-none shadow-xl z-10 transition-colors duration-200"
+            style={{ 
+                left: tooltip.x + 10, 
+                top: tooltip.y - 30, 
+                transform: 'translateY(-100%)',
+                background: 'var(--bg-surface)',
+                borderColor: 'var(--accent)',
+                color: 'var(--text-pri)'
+            }}
           >
-            <div className="text-[#00d4ff]">Bits: {tooltip.bits}</div>
+            <div style={{ color: 'var(--accent)' }}>Bits: {tooltip.bits}</div>
             <div>I: {tooltip.I.toFixed(3)}</div>
             <div>Q: {tooltip.Q.toFixed(3)}</div>
           </div>

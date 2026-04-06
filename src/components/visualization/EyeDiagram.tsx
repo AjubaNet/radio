@@ -26,7 +26,12 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
     const W = rect.width;
     const H = rect.height;
 
-    ctx.fillStyle = '#050510';
+    const style = getComputedStyle(document.body);
+    const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
+    const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(0, 212, 255, 0.1)';
+    const accent = style.getPropertyValue('--accent').trim() || '#00d4ff';
+
+    ctx.fillStyle = bgPanel;
     ctx.fillRect(0, 0, W, H);
 
     if (signal.length < samplesPerSymbol * 2) return;
@@ -38,7 +43,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
     }
     const range = maxV - minV || 1;
 
-    ctx.strokeStyle = 'rgba(0,212,255,0.1)';
+    ctx.strokeStyle = borderSub;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2);
@@ -46,7 +51,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
     ctx.stroke();
 
     const numTraces = Math.floor(signal.length / samplesPerSymbol) - 1;
-    ctx.strokeStyle = 'rgba(0,212,255,0.2)';
+    ctx.strokeStyle = accent + '33'; // low opacity
     ctx.lineWidth = 1;
     for (let t = 0; t < numTraces; t++) {
       const start = t * samplesPerSymbol;
@@ -61,7 +66,7 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
       ctx.stroke();
     }
 
-    ctx.strokeStyle = '#ffaa44';
+    ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -73,14 +78,24 @@ export const EyeDiagram: React.FC<Props> = ({ signal, samplesPerSymbol, title = 
   }, [signal, samplesPerSymbol]);
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
-        <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
-        <button onClick={() => setShowInfo(v => !v)} className={`p-1 rounded transition-colors ${showInfo ? 'bg-[#00d4ff]/30 text-white' : 'text-[#00d4ff]/50 hover:bg-[#00d4ff]/20'}`}><Info size={13} /></button>
+    <div className="flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200"
+        style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}>
+      <div className="flex items-center justify-between px-4 py-2 border-b transition-colors duration-200"
+        style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)' }}>
+        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>{title}</span>
+        <button onClick={() => setShowInfo(v => !v)} className="p-1 rounded transition-colors"
+            style={{ 
+                background: showInfo ? 'var(--accent-soft)' : 'transparent',
+                color: showInfo ? 'var(--accent)' : 'var(--text-muted)'
+            }}
+        >
+            <Info size={13} />
+        </button>
       </div>
       {showInfo && (
-        <div className="px-4 py-3 bg-indigo-950/60 border-b border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
-          <strong>Eye Diagram:</strong> All symbol periods overlaid on top of each other. A wide-open &ldquo;eye&rdquo; in the center means each symbol is clearly distinguishable — the receiver can decode reliably. As noise increases (lower SNR), the traces spread and the eye begins to close. When the eye nearly closes, errors become frequent. The horizontal threshold line shows the decision boundary for bit detection.
+        <div className="px-4 py-3 border-b text-xs leading-relaxed transition-colors duration-200" 
+            style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}>
+          <strong>Eye Diagram:</strong> All symbol periods overlaid on top of each other. A wide-open &ldquo;eye&rdquo; in the center means symbols are distinguishable.
         </div>
       )}
       <div className="relative flex-1">

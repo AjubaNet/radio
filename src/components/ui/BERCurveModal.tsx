@@ -16,11 +16,11 @@ function erfc(x: number): number {
 function qFunc(x: number): number { return 0.5 * erfc(x / Math.sqrt(2)); }
 
 const curves: { label: string; color: string; fn: (snrLin: number) => number; mod: string }[] = [
-  { label: 'ASK',   color: '#888888', fn: (s) => qFunc(Math.sqrt(s)),       mod: 'ask' },
-  { label: 'FSK',   color: '#6699ff', fn: (s) => 0.5 * Math.exp(-s / 2),   mod: 'fsk' },
-  { label: 'BPSK',  color: '#44ff88', fn: (s) => qFunc(Math.sqrt(2 * s)),   mod: 'psk' },
-  { label: 'QPSK',  color: '#00d4ff', fn: (s) => qFunc(Math.sqrt(2 * s)),   mod: 'qam' },
-  { label: '16-QAM',color: '#ffaa44', fn: (s) => (3/8) * erfc(Math.sqrt(2 * s / 5)), mod: 'qam16' },
+  { label: 'ASK',   color: '#94a3b8', fn: (s) => qFunc(Math.sqrt(s)),       mod: 'ask' },
+  { label: 'FSK',   color: '#3b82f6', fn: (s) => 0.5 * Math.exp(-s / 2),   mod: 'fsk' },
+  { label: 'BPSK',  color: '#22c55e', fn: (s) => qFunc(Math.sqrt(2 * s)),   mod: 'psk' },
+  { label: 'QPSK',  color: '#0ea5e9', fn: (s) => qFunc(Math.sqrt(2 * s)),   mod: 'qam' },
+  { label: '16-QAM',color: '#f59e0b', fn: (s) => (3/8) * erfc(Math.sqrt(2 * s / 5)), mod: 'qam16' },
 ];
 
 export const BERCurveModal: React.FC<Props> = ({ isOpen, onClose, currentModulation, currentSnr }) => {
@@ -43,27 +43,33 @@ export const BERCurveModal: React.FC<Props> = ({ isOpen, onClose, currentModulat
     const plotW = W - pad.left - pad.right;
     const plotH = H - pad.top - pad.bottom;
 
-    ctx.fillStyle = '#0a0a1e';
+    const style = getComputedStyle(document.body);
+    const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#0a0a1a';
+    const borderSub = style.getPropertyValue('--border-sub').trim() || 'rgba(255,255,255,0.1)';
+    const textPri = style.getPropertyValue('--text-pri').trim() || '#ffffff';
+    const textSec = style.getPropertyValue('--text-sec').trim() || '#94a3b8';
+
+    ctx.fillStyle = bgPanel;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.strokeStyle = borderSub;
     ctx.lineWidth = 1;
     for (let snrDb = 0; snrDb <= 30; snrDb += 5) {
       const x = pad.left + (snrDb / 30) * plotW;
       ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = textSec;
       ctx.font = '10px monospace';
       ctx.fillText(`${snrDb}`, x - 5, pad.top + plotH + 15);
     }
     for (let exp = 0; exp >= -6; exp--) {
       const y = pad.top + plotH * (-exp / 6);
       ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = textSec;
       ctx.font = '9px monospace';
       ctx.fillText(`1e${exp}`, pad.left - 38, y + 3);
     }
 
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = textPri;
     ctx.font = '11px monospace';
     ctx.fillText('SNR (dB)', pad.left + plotW / 2 - 30, H - 5);
     ctx.save(); ctx.translate(12, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
@@ -96,7 +102,7 @@ export const BERCurveModal: React.FC<Props> = ({ isOpen, onClose, currentModulat
         const cy = pad.top + plotH * (-logBer / 6);
         ctx.beginPath();
         ctx.arc(cx, cy, 7, 0, 2 * Math.PI);
-        ctx.fillStyle = '#ff4444';
+        ctx.fillStyle = '#ef4444';
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -109,7 +115,7 @@ export const BERCurveModal: React.FC<Props> = ({ isOpen, onClose, currentModulat
       const ly = pad.top + 15 + i * 22;
       ctx.fillStyle = c.color;
       ctx.fillRect(lx, ly - 7, 18, 3);
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillStyle = textSec;
       ctx.font = '10px monospace';
       ctx.fillText(c.label, lx + 22, ly);
     });
@@ -118,18 +124,21 @@ export const BERCurveModal: React.FC<Props> = ({ isOpen, onClose, currentModulat
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>
-      <div className="relative bg-[#0a0a1e] border border-[#00d4ff]/30 rounded-2xl overflow-hidden shadow-2xl w-[600px]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#00d4ff]/20 bg-[#00d4ff]/5">
-          <span className="text-sm font-bold text-[#00d4ff] uppercase tracking-wider">BER vs SNR Curves</span>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-white transition-colors"><X size={16} /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-200" onClick={onClose}>
+      <div className="relative border rounded-2xl overflow-hidden shadow-2xl w-[600px] transition-colors duration-200" 
+        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-acc)' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3 border-b transition-colors duration-200" 
+            style={{ borderColor: 'var(--border-sub)', background: 'var(--bg-card)' }}>
+          <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>BER vs SNR Curves</span>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-black/5 transition-colors" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
         </div>
         <canvas ref={canvasRef} style={{ width: 560, height: 380, display: 'block' }} />
-        <div className="px-5 py-3 border-t border-white/10 bg-black/30 text-[10px] text-gray-400 leading-relaxed space-y-1">
-          <p><span className="text-[#00d4ff] font-bold">What is BER?</span> Bit Error Rate = probability a received bit is decoded incorrectly. BER = 10⁻³ means 1 bit in 1,000 is wrong.</p>
-          <p><span className="text-yellow-400 font-bold">Log scale:</span> Y-axis is logarithmic. 10⁻¹ = 10% errors (very bad), 10⁻⁶ = 1-in-a-million (excellent). Each gridline is 10× better.</p>
-          <p><span className="text-green-400 font-bold">Reading curves:</span> Lower curve = better performance. Steeper slope = more benefit from increasing SNR. Curves that flatten out have an irreducible error floor.</p>
-          <p><span className="text-orange-400 font-bold">Red dot</span> = your current operating point (selected modulation at current SNR). Move the SNR slider to watch it travel along the curve.</p>
+        <div className="px-5 py-3 border-t text-[10px] leading-relaxed space-y-1 transition-colors duration-200"
+            style={{ borderColor: 'var(--border-sub)', background: 'var(--bg-panel)', color: 'var(--text-sec)' }}>
+          <p><span style={{ color: 'var(--accent)' }} className="font-bold">What is BER?</span> Probability a received bit is wrong. 10⁻³ = 1 bit in 1,000.</p>
+          <p><span className="text-amber-600 font-bold">Log scale:</span> Y-axis is powers of 10. Each gridline is 10× improvement.</p>
+          <p><span className="text-green-600 font-bold">Red dot</span> = your current setup. Move SNR slider to watch it travel.</p>
         </div>
       </div>
     </div>

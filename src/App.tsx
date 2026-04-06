@@ -77,8 +77,9 @@ const App: React.FC = () => {
 
     const isDigital = ['ask', 'fsk', 'psk', 'qam', 'dsss', 'fhss'].includes(modulation);
 
-    const snrColor = snr >= 30 ? '#44ff88' : snr >= 15 ? '#ffaa44' : '#ff4444';
-    const corrColor = metrics.correlation > 0.9 ? '#44ff88' : metrics.correlation > 0.6 ? '#ffaa44' : '#ff4444';
+    // Dynamic colors based on theme
+    const snrColor = snr >= 30 ? '#22c55e' : snr >= 15 ? '#f59e0b' : '#ef4444';
+    const corrColor = metrics.correlation > 0.9 ? '#22c55e' : metrics.correlation > 0.6 ? '#f59e0b' : '#ef4444';
 
     const viewModes: {id: 'time'|'spectrum'|'chain'|'waterfall'|'eye', label: string, digitalOnly?: boolean}[] = [
         { id: 'time', label: 'Time' },
@@ -91,25 +92,25 @@ const App: React.FC = () => {
     const samplesPerSymbol = Math.max(1, Math.floor(sampleRate / bitRate));
 
     return (
-        <div className={`flex h-screen text-gray-100 overflow-hidden font-sans theme-app ${theme === 'light' ? '[color-scheme:light]' : '[color-scheme:dark]'}`}
+        <div className={`flex h-screen text-gray-100 overflow-hidden font-sans theme-app transition-colors duration-200 ${theme === 'light' ? '[color-scheme:light]' : '[color-scheme:dark]'}`}
             style={{ background: 'var(--bg-app)', color: 'var(--text-pri)' }}
         >
             {/* Left sidebar */}
-            <aside className="w-80 flex flex-col border-r backdrop-blur-xl theme-surface"
+            <aside className="w-80 flex flex-col border-r shadow-lg z-20 transition-colors duration-200"
                 style={{ borderColor: 'var(--border-sub)', background: 'var(--bg-surface)' }}
             >
-                <header className="p-6 border-b" style={{ borderColor: 'var(--border-acc)', background: 'var(--bg-card)' }}>
+                <header className="p-6 border-b transition-colors duration-200" style={{ borderColor: 'var(--border-sub)', background: 'var(--bg-card)' }}>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-[#00d4ff] rounded-lg text-[#1a1a2e]">
+                        <div className="p-2 rounded-lg" style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}>
                             <Radio size={24} />
                         </div>
-                        <h1 className="text-xl font-black tracking-tight text-white uppercase italic">RadioLab v2</h1>
+                        <h1 className="text-xl font-black tracking-tight uppercase italic" style={{ color: 'var(--text-pri)' }}>RadioLab v2</h1>
                     </div>
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
                     <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[#00d4ff]/60 flex items-center gap-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--accent)' }}>
                             <Waves size={12} /> Message Type
                         </label>
                         <div className="grid grid-cols-2 gap-2">
@@ -118,11 +119,12 @@ const App: React.FC = () => {
                                     key={mt.id}
                                     onClick={() => setMessageType(mt.id)}
                                     title={mt.title}
-                                    className={`px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
-                                        messageType === mt.id 
-                                        ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white' 
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                                    }`}
+                                    className="px-3 py-2 rounded-lg text-[10px] font-bold transition-all border"
+                                    style={{
+                                        borderColor: messageType === mt.id ? 'var(--accent)' : 'var(--border-sub)',
+                                        backgroundColor: messageType === mt.id ? 'var(--bg-accent-sub)' : 'var(--bg-input)',
+                                        color: messageType === mt.id ? 'var(--accent)' : 'var(--text-sec)'
+                                    }}
                                 >
                                     {mt.label}
                                 </button>
@@ -131,11 +133,12 @@ const App: React.FC = () => {
                         {isDigital && (
                             <button
                                 onClick={() => setDeterministicBits(!deterministicBits)}
-                                className={`w-full px-3 py-2 rounded-lg text-[10px] font-bold border transition-all ${
-                                    deterministicBits
-                                    ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                                }`}
+                                className="w-full px-3 py-2 rounded-lg text-[10px] font-bold border transition-all"
+                                style={{
+                                    borderColor: deterministicBits ? '#f59e0b' : 'var(--border-sub)',
+                                    backgroundColor: deterministicBits ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-input)',
+                                    color: deterministicBits ? '#f59e0b' : 'var(--text-sec)'
+                                }}
                             >
                                 {deterministicBits ? '🔒 Deterministic Bits' : '🎲 Random Bits'}
                             </button>
@@ -143,7 +146,7 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[#00d4ff]/60 flex items-center gap-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--accent)' }}>
                             <Layers size={12} /> Category
                         </label>
                         <div className="grid grid-cols-2 gap-2">
@@ -151,11 +154,13 @@ const App: React.FC = () => {
                                 <button
                                     key={cat.id}
                                     onClick={() => setActiveTab(cat.id)}
-                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
-                                        activeTab === cat.id 
-                                        ? 'bg-[#00d4ff] border-[#00d4ff] text-[#1a1a2e] shadow-lg shadow-[#00d4ff]/20' 
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                                    }`}
+                                    className="px-3 py-2 rounded-lg text-xs font-bold transition-all border"
+                                    style={{
+                                        borderColor: activeTab === cat.id ? 'var(--accent)' : 'var(--border-sub)',
+                                        backgroundColor: activeTab === cat.id ? 'var(--accent)' : 'var(--bg-input)',
+                                        color: activeTab === cat.id ? 'var(--text-on-accent)' : 'var(--text-sec)',
+                                        boxShadow: activeTab === cat.id ? '0 4px 12px var(--shadow)' : 'none'
+                                    }}
                                 >
                                     {cat.label}
                                 </button>
@@ -164,7 +169,7 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[#00d4ff]/60 flex items-center gap-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--accent)' }}>
                             <Settings2 size={12} /> Modulation
                         </label>
                         <div className="flex flex-col gap-2">
@@ -172,75 +177,81 @@ const App: React.FC = () => {
                                 <button
                                     key={mod}
                                     onClick={() => handleModulationChange(mod)}
-                                    className={`px-4 py-3 rounded-xl text-sm font-bold text-left transition-all border flex items-center justify-between ${
-                                        modulation === mod 
-                                        ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white' 
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                                    }`}
+                                    className="px-4 py-3 rounded-xl text-sm font-bold text-left transition-all border flex items-center justify-between"
+                                    style={{
+                                        borderColor: modulation === mod ? 'var(--accent)' : 'var(--border-sub)',
+                                        backgroundColor: modulation === mod ? 'var(--bg-accent-sub)' : 'var(--bg-input)',
+                                        color: modulation === mod ? 'var(--accent)' : 'var(--text-sec)'
+                                    }}
                                 >
                                     {mod.toUpperCase()}
-                                    {modulation === mod && <div className="w-2 h-2 rounded-full bg-[#00d4ff] animate-pulse" />}
+                                    {modulation === mod && <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent)' }} />}
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    <div className="space-y-6 pt-4 border-t border-[#00d4ff]/10">
+                    <div className="space-y-6 pt-4 border-t" style={{ borderColor: 'var(--border-sub)' }}>
                         <div className="space-y-3">
                             <div className="flex justify-between text-xs font-bold">
-                                <span className="text-gray-400">Carrier Freq</span>
-                                <span className="text-[#00d4ff] font-mono">{carrierFreq}Hz</span>
+                                <span style={{ color: 'var(--text-sec)' }}>Carrier Freq</span>
+                                <span className="font-mono" style={{ color: 'var(--accent)' }}>{carrierFreq}Hz</span>
                             </div>
-                            <input type="range" min="100" max="5000" step="100" value={carrierFreq} onChange={(e) => setCarrierFreq(parseInt(e.target.value))} className="w-full accent-[#00d4ff] h-1 bg-white/10 rounded-full appearance-none cursor-pointer" />
+                            <input type="range" min="100" max="5000" step="100" value={carrierFreq} onChange={(e) => setCarrierFreq(parseInt(e.target.value))} className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
                         </div>
 
                         <div className="space-y-3">
                             <div className="flex justify-between text-xs font-bold">
-                                <span className="text-gray-400">Message Freq</span>
-                                <span className="text-[#00d4ff] font-mono">{msgFreq}Hz</span>
+                                <span style={{ color: 'var(--text-sec)' }}>Message Freq</span>
+                                <span className="font-mono" style={{ color: 'var(--accent)' }}>{msgFreq}Hz</span>
                             </div>
-                            <input type="range" min="1" max="500" step="1" value={msgFreq} onChange={(e) => setMsgFreq(parseInt(e.target.value))} className="w-full accent-[#00d4ff] h-1 bg-white/10 rounded-full appearance-none cursor-pointer" />
+                            <input type="range" min="1" max="500" step="1" value={msgFreq} onChange={(e) => setMsgFreq(parseInt(e.target.value))} className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
                         </div>
 
                         <div className="space-y-3">
                             <div className="flex justify-between text-xs font-bold">
-                                <span className="text-gray-400">Mod Index</span>
-                                <span className="text-[#00d4ff] font-mono">{modIndex.toFixed(2)}</span>
+                                <span style={{ color: 'var(--text-sec)' }}>Mod Index</span>
+                                <span className="font-mono" style={{ color: 'var(--accent)' }}>{modIndex.toFixed(2)}</span>
                             </div>
-                            <input type="range" min="0" max="5" step="0.05" value={modIndex} onChange={(e) => setModIndex(parseFloat(e.target.value))} className="w-full accent-[#00d4ff] h-1 bg-white/10 rounded-full appearance-none cursor-pointer" />
+                            <input type="range" min="0" max="5" step="0.05" value={modIndex} onChange={(e) => setModIndex(parseFloat(e.target.value))} className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
                         </div>
 
                         <div className="space-y-3">
                             <div className="flex justify-between items-center text-xs font-bold">
-                                <span className="text-gray-400">Channel SNR</span>
+                                <span style={{ color: 'var(--text-sec)' }}>Channel SNR</span>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full" style={{backgroundColor: snrColor}} />
-                                    <span className="text-[#00d4ff] font-mono">{snr}dB</span>
-                                    <button onClick={() => handleModulationChange(modulation)} className="text-[9px] font-bold text-[#00d4ff]/60 hover:text-[#00d4ff] uppercase tracking-wider transition-colors">⚡ Reset</button>
+                                    <span className="font-mono" style={{ color: 'var(--accent)' }}>{snr}dB</span>
+                                    <button onClick={() => handleModulationChange(modulation)} className="text-[9px] font-bold uppercase tracking-wider transition-colors" style={{ color: 'var(--text-muted)' }}>⚡ Reset</button>
                                 </div>
                             </div>
-                            <input type="range" min="-10" max="40" step="1" value={snr} onChange={(e) => setSnr(parseInt(e.target.value))} className="w-full accent-[#00d4ff] h-1 bg-white/10 rounded-full appearance-none cursor-pointer" />
+                            <input type="range" min="-10" max="40" step="1" value={snr} onChange={(e) => setSnr(parseInt(e.target.value))} className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
                         </div>
 
                         {isDigital && (
                             <div className="space-y-3">
                                 <div className="flex justify-between text-xs font-bold">
-                                    <span className="text-gray-400">Bit Rate</span>
-                                    <span className="text-[#00d4ff] font-mono">{bitRate} bps</span>
+                                    <span style={{ color: 'var(--text-sec)' }}>Bit Rate</span>
+                                    <span className="font-mono" style={{ color: 'var(--accent)' }}>{bitRate} bps</span>
                                 </div>
-                                <input type="range" min="100" max="3200" step="100" value={bitRate} onChange={(e) => setBitRate(parseInt(e.target.value))} className="w-full accent-[#00d4ff] h-1 bg-white/10 rounded-full appearance-none cursor-pointer" />
+                                <input type="range" min="100" max="3200" step="100" value={bitRate} onChange={(e) => setBitRate(parseInt(e.target.value))} className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer" style={{ accentColor: 'var(--accent)' }} />
                             </div>
                         )}
 
                         <div className="space-y-2">
                             <div className="flex justify-between text-xs font-bold">
-                                <span className="text-gray-400">Sample Rate</span>
-                                <span className="text-[#00d4ff] font-mono">{(sampleRate / 1000).toFixed(1)} kHz</span>
+                                <span style={{ color: 'var(--text-sec)' }}>Sample Rate</span>
+                                <span className="font-mono" style={{ color: 'var(--accent)' }}>{(sampleRate / 1000).toFixed(1)} kHz</span>
                             </div>
                             <div className="grid grid-cols-3 gap-1">
                                 {[8000, 22050, 44100].map(sr => (
                                     <button key={sr} onClick={() => setSampleRate(sr)}
-                                        className={`px-2 py-1 rounded text-[10px] font-bold border transition-all ${sampleRate === sr ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
+                                        className="px-2 py-1 rounded text-[10px] font-bold border transition-all"
+                                        style={{
+                                            borderColor: sampleRate === sr ? 'var(--accent)' : 'var(--border-sub)',
+                                            backgroundColor: sampleRate === sr ? 'var(--bg-accent-sub)' : 'var(--bg-input)',
+                                            color: sampleRate === sr ? 'var(--accent)' : 'var(--text-sec)'
+                                        }}>
                                         {sr === 8000 ? '8k' : sr === 22050 ? '22k' : '44k'}
                                     </button>
                                 ))}
@@ -249,23 +260,25 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <footer className="p-6 bg-black/20 border-t border-[#00d4ff]/10 grid grid-cols-2 gap-2">
+                <footer className="p-6 border-t grid grid-cols-2 gap-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}>
                     <div className="relative">
                         <button
                             onClick={() => setShowExportMenu(!showExportMenu)}
-                            className="w-full flex items-center justify-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-white border border-white/5"
+                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl transition-all border"
+                            style={{ background: 'var(--bg-input)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}
                         >
                             <Download size={16} /> <span className="text-[10px] font-bold uppercase">Export</span>
                         </button>
                         {showExportMenu && (
-                            <div className="absolute bottom-full mb-2 left-0 bg-[#1a1a2e] border border-[#00d4ff]/30 rounded-xl overflow-hidden shadow-xl z-10 w-52">
-                        <button onClick={() => { exportWAV('demodulated'); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs text-gray-300 hover:bg-[#00d4ff]/10 hover:text-white transition-colors">
+                            <div className="absolute bottom-full mb-2 left-0 border rounded-xl overflow-hidden shadow-xl z-10 w-52"
+                                style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-acc)' }}>
+                                <button onClick={() => { exportWAV('demodulated'); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs transition-colors" style={{ color: 'var(--text-sec)' }}>
                                     🎵 Export WAV (demodulated)
                                 </button>
-                                <button onClick={() => { exportWAV('message'); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs text-gray-300 hover:bg-[#00d4ff]/10 hover:text-white transition-colors border-t border-white/5">
+                                <button onClick={() => { exportWAV('message'); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs transition-colors border-t" style={{ color: 'var(--text-sec)', borderColor: 'var(--border-sub)' }}>
                                     🎵 Export WAV (message)
                                 </button>
-                                <button onClick={() => { exportPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs text-gray-300 hover:bg-purple-500/10 hover:text-white transition-colors border-t border-white/5">
+                                <button onClick={() => { exportPDF(); setShowExportMenu(false); }} className="w-full text-left px-4 py-3 text-xs transition-colors border-t" style={{ color: 'var(--text-sec)', borderColor: 'var(--border-sub)' }}>
                                     📄 Export PDF Report
                                 </button>
                             </div>
@@ -274,7 +287,8 @@ const App: React.FC = () => {
                     <div className="relative">
                         <button
                             onClick={handleCopyParams}
-                            className="w-full flex items-center justify-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-gray-400 hover:text-white border border-white/5"
+                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl transition-all border"
+                            style={{ background: 'var(--bg-input)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}
                         >
                             <Share2 size={16} /> <span className="text-[10px] font-bold uppercase">{copyToast ? 'Copied!' : 'Share'}</span>
                         </button>
@@ -282,51 +296,40 @@ const App: React.FC = () => {
                 </footer>
             </aside>
 
-            <main className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 flex flex-col min-w-0" style={{ background: 'var(--bg-app)' }}>
                 {/* Metrics header */}
-                <div className="flex items-center justify-between px-8 backdrop-blur-sm border-b" style={{minHeight: '4rem', background: 'var(--bg-surface)', borderColor: 'var(--border-sub)'}}>
+                <div className="flex items-center justify-between px-8 border-b transition-colors duration-200" style={{minHeight: '4rem', background: 'var(--bg-surface)', borderColor: 'var(--border-sub)'}}>
                     <div className="flex gap-6 flex-wrap">
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">Measured SNR</span>
+                            <span className="text-[10px] font-bold uppercase tracking-tighter" style={{ color: 'var(--text-muted)' }}>Measured SNR</span>
                             <div className="flex items-center gap-1">
                                 <div className="w-2 h-2 rounded-full" style={{backgroundColor: snrColor}} />
-                                <span className="text-sm font-mono font-bold text-white">{metrics.snr.toFixed(1)} dB</span>
+                                <span className="text-sm font-mono font-bold" style={{ color: 'var(--text-pri)' }}>{metrics.snr.toFixed(1)} dB</span>
                             </div>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">Occupied BW</span>
-                            <span className="text-sm font-mono font-bold text-white">{(metrics.bandwidth / 1000).toFixed(2)} kHz</span>
+                            <span className="text-[10px] font-bold uppercase tracking-tighter" style={{ color: 'var(--text-muted)' }}>Occupied BW</span>
+                            <span className="text-sm font-mono font-bold" style={{ color: 'var(--text-pri)' }}>{(metrics.bandwidth / 1000).toFixed(2)} kHz</span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">BER</span>
-                            <span className="text-sm font-mono font-bold text-white">
+                            <span className="text-[10px] font-bold uppercase tracking-tighter" style={{ color: 'var(--text-muted)' }}>BER</span>
+                            <span className="text-sm font-mono font-bold" style={{ color: 'var(--text-pri)' }}>
                                 {isDigital && isFinite(metrics.ber) ? metrics.ber.toExponential(2) : 'N/A'}
                             </span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">Peak Power</span>
-                            <span className="text-sm font-mono font-bold text-white">{isFinite(metrics.peakPower) ? metrics.peakPower.toFixed(1) + ' dBm' : 'N/A'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">Spec Eff</span>
-                            <span className="text-sm font-mono font-bold text-white">
-                                {metrics.spectralEfficiency > 0 ? metrics.spectralEfficiency.toFixed(2) + ' b/Hz' : 'N/A'}
-                            </span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-[#00d4ff]/60 uppercase tracking-tighter">EVM</span>
-                            <span className="text-sm font-mono font-bold text-white">
-                                {modulation === 'qam' ? metrics.evm.toFixed(1) + '%' : 'N/A'}
-                            </span>
+                            <span className="text-[10px] font-bold uppercase tracking-tighter" style={{ color: 'var(--text-muted)' }}>Peak Power</span>
+                            <span className="text-sm font-mono font-bold" style={{ color: 'var(--text-pri)' }}>{isFinite(metrics.peakPower) ? metrics.peakPower.toFixed(1) + ' dBm' : 'N/A'}</span>
                         </div>
                         <div className="flex flex-col">
                             <button 
                                 onClick={() => setSyncView(!syncView)}
-                                className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all ${
-                                    syncView 
-                                    ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-[#00d4ff]' 
-                                    : 'bg-white/5 border-white/10 text-gray-500'
-                                }`}
+                                className="flex items-center gap-2 px-3 py-1 rounded-full border transition-all mt-1"
+                                style={{
+                                    borderColor: syncView ? 'var(--accent)' : 'var(--border-sub)',
+                                    backgroundColor: syncView ? 'var(--bg-accent-sub)' : 'var(--bg-input)',
+                                    color: syncView ? 'var(--accent)' : 'var(--text-muted)'
+                                }}
                             >
                                 {syncView ? <Link size={12} /> : <Link2Off size={12} />}
                                 <span className="text-[10px] font-bold uppercase">Sync</span>
@@ -337,28 +340,32 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={toggleTheme}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold border transition-all bg-white/5 border-white/10 hover:bg-white/10"
-                            style={{ color: 'var(--text-sec)' }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold border transition-all shadow-sm"
+                            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}
                             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                         >
-                            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                            {theme === 'dark' ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-indigo-600" />}
                         </button>
-                        <button onClick={() => setBerModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-400 text-xs font-bold hover:bg-purple-500 hover:text-white transition-all">
+                        <button onClick={() => setBerModalOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all shadow-sm"
+                            style={{ background: 'rgba(168, 85, 247, 0.1)', borderColor: 'rgba(168, 85, 247, 0.3)', color: '#a855f7' }}>
                             <TrendingUp size={14} /> BER Curves
                         </button>
-                        <button onClick={() => setDemoOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 border border-teal-500/30 rounded-lg text-teal-400 text-xs font-bold hover:bg-teal-500 hover:text-white transition-all">
+                        <button onClick={() => setDemoOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all shadow-sm"
+                            style={{ background: 'rgba(20, 184, 166, 0.1)', borderColor: 'rgba(20, 184, 166, 0.3)', color: '#14b8a6' }}>
                             <Presentation size={14} /> Demo
                         </button>
-                        <button onClick={() => setHelpModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 rounded-lg text-indigo-400 text-xs font-bold hover:bg-indigo-500 hover:text-white transition-all">
+                        <button onClick={() => setHelpModalOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all shadow-sm"
+                            style={{ background: 'rgba(79, 70, 229, 0.1)', borderColor: 'rgba(79, 70, 229, 0.3)', color: '#4f46e5' }}>
                             <HelpCircle size={14} /> Help
                         </button>
                         <button
                             onClick={() => setShowMelodyPanel(v => !v)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all ${
-                                showMelodyPanel
-                                ? 'bg-amber-500/30 border-amber-500/60 text-amber-300'
-                                : 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-[#1a1a2e]'
-                            }`}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all shadow-sm"
+                            style={{ 
+                                background: showMelodyPanel ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.1)', 
+                                borderColor: 'rgba(245, 158, 11, 0.3)', 
+                                color: '#f59e0b' 
+                            }}
                         >
                             <Music size={14} /> Melody
                         </button>
@@ -367,23 +374,24 @@ const App: React.FC = () => {
 
                 {/* Melody selector panel */}
                 {showMelodyPanel && (
-                    <div className="px-8 py-3 border-b border-amber-500/20 bg-amber-500/5 flex items-center gap-4">
-                        <span className="text-xs font-bold text-amber-400 uppercase tracking-wider whitespace-nowrap">🎵 Signal Source</span>
+                    <div className="px-8 py-3 border-b flex items-center gap-4 transition-colors duration-200" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}>
+                        <span className="text-xs font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: '#f59e0b' }}>🎵 Signal Source</span>
                         <div className="flex items-center gap-2">
                             {([
-                                { key: null,       label: 'Tone (continuous)' },
-                                { key: 'twinkle',  label: 'Twinkle, Twinkle' },
-                                { key: 'mary',     label: 'Mary Had a Little Lamb' },
-                                { key: 'baa',      label: 'Baa, Baa, Black Sheep' },
+                                { key: null,       label: 'Tone' },
+                                { key: 'twinkle',  label: 'Twinkle' },
+                                { key: 'mary',     label: 'Mary' },
+                                { key: 'baa',      label: 'Baa Baa' },
                             ] as const).map(m => (
                                 <button
                                     key={m.key ?? 'none'}
                                     onClick={() => setSelectedMelody(m.key)}
-                                    className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all ${
-                                        selectedMelody === m.key
-                                        ? 'bg-amber-500/30 border-amber-400 text-amber-200'
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:border-amber-500/40 hover:text-amber-300'
-                                    }`}
+                                    className="px-3 py-1 rounded-lg text-[11px] font-bold border transition-all"
+                                    style={{
+                                        borderColor: selectedMelody === m.key ? '#f59e0b' : 'var(--border-sub)',
+                                        backgroundColor: selectedMelody === m.key ? 'rgba(245, 158, 11, 0.2)' : 'var(--bg-input)',
+                                        color: selectedMelody === m.key ? '#f59e0b' : 'var(--text-sec)'
+                                    }}
                                 >
                                     {m.label}
                                 </button>
@@ -393,44 +401,47 @@ const App: React.FC = () => {
                             <div className="flex items-center gap-2 ml-2">
                                 <button
                                     onClick={() => playMelody(selectedMelody, 'original')}
-                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/40 transition-all"
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold transition-all border"
+                                    style={{ background: 'rgba(79, 70, 229, 0.1)', borderColor: 'rgba(79, 70, 229, 0.3)', color: '#4f46e5' }}
                                 >
                                     <Play size={10} fill="currentColor" /> Original
                                 </button>
                                 <button
                                     onClick={() => playMelody(selectedMelody, 'modulated')}
-                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold bg-[#00d4ff]/20 border border-[#00d4ff]/40 text-[#00d4ff] hover:bg-[#00d4ff]/40 transition-all"
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold transition-all border"
+                                    style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-acc)', color: 'var(--accent)' }}
                                 >
-                                    <Play size={10} fill="currentColor" /> TX (modulated)
+                                    <Play size={10} fill="currentColor" /> TX
                                 </button>
                                 <button
                                     onClick={() => playMelody(selectedMelody, 'demodulated')}
-                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold bg-green-500/20 border border-green-500/40 text-green-300 hover:bg-green-500/40 transition-all"
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-bold transition-all border"
+                                    style={{ background: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.3)', color: '#22c55e' }}
                                 >
-                                    <Play size={10} fill="currentColor" /> RX (recovered)
+                                    <Play size={10} fill="currentColor" /> RX
                                 </button>
-                                <span className="text-[10px] text-gray-500">← Compare quality!</span>
                             </div>
                         )}
                     </div>
                 )}
 
                 {/* View mode tabs */}
-                <div className="flex items-center gap-1 px-8 py-2 border-b border-[#00d4ff]/10 bg-[#1a1a2e]/10">
+                <div className="flex items-center gap-1 px-8 py-2 border-b transition-colors duration-200" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-sub)' }}>
                     {viewModes.map(vm => {
                         const disabled = vm.digitalOnly && !isDigital;
+                        const active = viewMode === vm.id;
                         return (
                             <button
                                 key={vm.id}
                                 onClick={() => !disabled && setViewMode(vm.id)}
                                 disabled={disabled}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                                    viewMode === vm.id
-                                    ? 'bg-[#00d4ff]/20 border-[#00d4ff] text-white'
-                                    : disabled
-                                    ? 'bg-white/2 border-white/5 text-gray-600 cursor-not-allowed'
-                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                                }`}
+                                className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all border"
+                                style={{
+                                    borderColor: active ? 'var(--accent)' : 'transparent',
+                                    backgroundColor: active ? 'var(--bg-accent-sub)' : 'transparent',
+                                    color: active ? 'var(--accent)' : disabled ? 'var(--text-muted)' : 'var(--text-sec)',
+                                    opacity: disabled ? 0.5 : 1
+                                }}
                             >
                                 {vm.label}
                             </button>
@@ -439,14 +450,14 @@ const App: React.FC = () => {
                 </div>
 
                 {/* Main content */}
-                <div className="flex-1 p-6 overflow-y-auto scrollbar-hide">
+                <div className="flex-1 p-6 overflow-y-auto scrollbar-hide" style={{ background: 'var(--bg-app)' }}>
                     {viewMode === 'time' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className={isDigital && constellation.length > 0 ? "lg:col-span-1 h-[300px]" : "lg:col-span-2 h-[300px]"}>
                                 <AdvancedVisualizer
                                     title="Transmitted Modulated Waveform"
-                                    infoText="The carrier wave has been modified (modulated) to carry your message. In AM, the amplitude envelope follows the message. In FM, the frequency visibly varies with the message. In digital mods, look for phase flips or amplitude changes at symbol boundaries. Compare this to the Message and Carrier panels in Chain view."
-                                    layers={[{ data: signals.modulated, color: '#00d4ff', label: 'Modulated' }]}
+                                    infoText="The carrier wave has been modified (modulated) to carry your message. In AM, the amplitude envelope follows the message. In FM, the frequency visibly varies with the message."
+                                    layers={[{ data: signals.modulated, color: 'var(--accent)', label: 'Modulated' }]}
                                     externalZoom={syncView ? sharedZoom : undefined}
                                     externalOffset={syncView ? sharedOffset : undefined}
                                     onViewChange={syncView ? handleViewChange : undefined}
@@ -462,10 +473,10 @@ const App: React.FC = () => {
                             <div className="relative h-[250px]">
                                 <AdvancedVisualizer
                                     title="Recovery Comparison (Original vs Recovered)"
-                                    infoText="Blue = original message signal. Orange = demodulated signal through the noisy channel. Ideally these overlap perfectly. Reduce SNR on the slider to watch the orange trace diverge from blue — that divergence is noise-induced distortion. The Correlation % (top right) quantifies alignment: 100% = perfect, <80% = noticeable degradation, <50% = poor."
+                                    infoText="Blue = original message signal. Orange = demodulated signal through the noisy channel. Ideally these overlap perfectly."
                                     layers={[
-                                        { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
-                                        { data: signals.demodulated, color: '#ff8844', label: 'Demodulated' }
+                                        { data: signals.message, color: '#3b82f6', label: 'Message' },
+                                        { data: signals.demodulated, color: '#f59e0b', label: 'Demodulated' }
                                     ]}
                                     externalZoom={syncView ? sharedZoom : undefined}
                                     externalOffset={syncView ? sharedOffset : undefined}
@@ -479,10 +490,10 @@ const App: React.FC = () => {
                             <div className="h-[250px]">
                                 <AdvancedVisualizer
                                     title="Ideal Recovery (Perfect Channel)"
-                                    infoText="Same demodulation algorithm, but zero noise applied. This is the theoretical best-case output. Comparing this to the Recovery Comparison panel isolates noise impact from demodulator distortion. If Ideal Recovery doesn't match the message, the demodulator or parameters need adjustment. If it matches but noisy recovery doesn't — that's pure noise degradation."
+                                    infoText="Same demodulation algorithm, but zero noise applied. This is the theoretical best-case output."
                                     layers={[
-                                        { data: signals.message, color: 'rgba(102, 153, 255, 0.5)', label: 'Message' },
-                                        { data: signals.demodIdeal, color: '#44ff88', label: 'Ideal' }
+                                        { data: signals.message, color: '#3b82f6', label: 'Message' },
+                                        { data: signals.demodIdeal, color: '#22c55e', label: 'Ideal' }
                                     ]}
                                     externalZoom={syncView ? sharedZoom : undefined}
                                     externalOffset={syncView ? sharedOffset : undefined}
@@ -501,7 +512,7 @@ const App: React.FC = () => {
                                 msgFreq={msgFreq}
                                 modulation={modulation}
                                 modIndex={modIndex}
-                                bitRate={bitRate}
+                                
                                 title="Frequency Spectrum (FFT)"
                             />
                         </div>
@@ -533,11 +544,14 @@ const App: React.FC = () => {
                 </div>
             </main>
 
-            <aside className={`w-96 flex-shrink-0 transition-all duration-300 transform ${sidebarOpen ? 'translate-x-0' : 'translate-x-full absolute right-0'}`}>
+            <aside className={`w-96 flex-shrink-0 transition-all duration-300 transform border-l z-20 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full absolute right-0'}`}
+                style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-sub)' }}
+            >
                 <ModulationGuide type={modulation} />
                 <button
                     onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="absolute -left-10 top-1/2 -translate-y-1/2 p-2 bg-[#1a1a2e] border border-[#00d4ff]/30 rounded-l-xl text-[#00d4ff] z-10"
+                    className="absolute -left-10 top-1/2 -translate-y-1/2 p-2 border rounded-l-xl z-10 transition-colors"
+                    style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-acc)', color: 'var(--accent)' }}
                 >
                     <BookOpen size={20} />
                 </button>

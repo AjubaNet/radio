@@ -3,7 +3,6 @@ import { Info } from 'lucide-react';
 
 interface Props {
   spectrum: Float32Array;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   sampleRate: number;
   title?: string;
 }
@@ -43,6 +42,15 @@ export const WaterfallView: React.FC<Props> = ({ spectrum, title = 'Waterfall' }
     const imgData = ctx.createImageData(W, H);
     const data = imgData.data;
 
+    // Get theme accent for waterfall colors
+    const style = getComputedStyle(document.body);
+    const accent = style.getPropertyValue('--accent').trim() || '#00d4ff';
+    // Simple hex to RGB conversion for the waterfall effect
+    const rMatch = accent.match(/[0-9a-f]{2}/gi);
+    const accR = rMatch ? parseInt(rMatch[0], 16) : 0;
+    const accG = rMatch ? parseInt(rMatch[1], 16) : 212;
+    const accB = rMatch ? parseInt(rMatch[2], 16) : 255;
+
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r];
       const yBase = Math.floor((MAX_ROWS - rows.length + r) * rowH);
@@ -56,9 +64,9 @@ export const WaterfallView: React.FC<Props> = ({ spectrum, title = 'Waterfall' }
           const py = pixelY + dy - Math.floor(rowH / 2);
           if (py < 0 || py >= H) continue;
           const idx = (py * W + x) * 4;
-          data[idx]     = 0;
-          data[idx + 1] = Math.floor(db * 212);
-          data[idx + 2] = Math.floor(db * 255);
+          data[idx]     = Math.floor(db * accR * 0.2);
+          data[idx + 1] = Math.floor(db * accG);
+          data[idx + 2] = Math.floor(db * accB);
           data[idx + 3] = 255;
         }
       }
@@ -67,14 +75,26 @@ export const WaterfallView: React.FC<Props> = ({ spectrum, title = 'Waterfall' }
   }, [spectrum]);
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a2e]/40 border-2 border-[#00d4ff]/30 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 bg-[#00d4ff]/10 border-b border-[#00d4ff]/20">
-        <span className="text-xs font-bold uppercase tracking-wider text-[#00d4ff]">{title}</span>
-        <button onClick={() => setShowInfo(v => !v)} className={`p-1 rounded transition-colors ${showInfo ? 'bg-[#00d4ff]/30 text-white' : 'text-[#00d4ff]/50 hover:bg-[#00d4ff]/20'}`}><Info size={13} /></button>
+    <div className="flex flex-col h-full border-2 rounded-xl overflow-hidden shadow-lg transition-colors duration-200"
+        style={{ background: 'var(--bg-card)', borderColor: 'var(--border-sub)' }}
+    >
+      <div className="flex items-center justify-between px-4 py-2 border-b transition-colors duration-200"
+        style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)' }}
+      >
+        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>{title}</span>
+        <button onClick={() => setShowInfo(v => !v)} className="p-1 rounded transition-colors"
+            style={{ 
+                background: showInfo ? 'var(--accent-soft)' : 'transparent',
+                color: showInfo ? 'var(--accent)' : 'var(--text-muted)'
+            }}
+        >
+            <Info size={13} />
+        </button>
       </div>
       {showInfo && (
-        <div className="px-4 py-3 bg-indigo-950/60 border-b border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
-          <strong>Waterfall Spectrogram:</strong> Frequency runs left-right; time flows downward; brightness/color represents signal power. Each horizontal row is one spectrum snapshot. FHSS shows diagonal hopping lines as the carrier jumps between frequencies. DSSS shows a wide, diffuse smear across the spectrum. AM shows sharp vertical lines (carrier + sidebands). FM shows a symmetric fan of sidebands.
+        <div className="px-4 py-3 border-b text-xs leading-relaxed transition-colors duration-200" 
+            style={{ background: 'var(--bg-accent-sub)', borderColor: 'var(--border-sub)', color: 'var(--text-sec)' }}>
+          <strong>Waterfall Spectrogram:</strong> Frequency runs left-right; time flows downward; brightness/color represents signal power.
         </div>
       )}
       <div className="relative flex-1">
